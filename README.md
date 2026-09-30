@@ -72,97 +72,111 @@ The main objectives of the project are:
 
 ---
 
-##  Architecture
+## 🏗️ Architecture
 
 The system follows a **Layered Architecture** consisting of three layers:
 
-```text
-Presentation Layer
-        │
-        ▼
-     Web UI
-        │
-        ▼
-Business Layer
-        │
-        ├── AuthModule
-        ├── ProfileModule
-        ├── ListingModule
-        ├── ApplicationModule
-        ├── AssessmentModule
-        ├── InterviewPrepModule
-        ├── RecruiterModule
-        └── AdminModule
-        │
-        ▼
-Data Layer
-        │
-        ▼
-Relational Database
+```mermaid
+flowchart TB
+    UI["Presentation Layer<br/>Web UI"]
 
-The architecture separates the user interface, business functionality, and persistent data storage.
+    subgraph BL["Business Layer"]
+        AUTH["AuthModule"]
+        PROFILE["ProfileModule"]
+        LISTING["ListingModule"]
+        APPLICATION["ApplicationModule"]
+        ASSESSMENT["AssessmentModule"]
+        INTERVIEW["InterviewPrepModule"]
+        RECRUITER["RecruiterModule"]
+        ADMIN["AdminModule"]
+    end
 
-🧩 Main Modules
-Module	Responsibility
-AuthModule	Registration with OTP, login, JWT sessions, account lockout, and recruiter account requests
-ProfileModule	Student profile and resume management
-ListingModule	Internship/placement listings and filtering
-ApplicationModule	Application submission, duplicate prevention, and application tracking
-AssessmentModule	Timed mock tests, automatic scoring, and score history
-InterviewPrepModule	Interview question bank, mock-interview booking, and feedback
-RecruiterModule	Listing creation and applicant viewing/shortlisting
-AdminModule	Recruiter approval and placement reporting
+    DB["Data Layer<br/>Relational Database"]
 
- Technology
+    UI --> AUTH
+    UI --> PROFILE
+    UI --> LISTING
+    UI --> APPLICATION
+    UI --> ASSESSMENT
+    UI --> INTERVIEW
+    UI --> RECRUITER
+    UI --> ADMIN
 
-The architecture and design documentation currently specifies a technology-agnostic implementation approach.
+    AUTH --> DB
+    PROFILE --> DB
+    LISTING --> DB
+    APPLICATION --> DB
+    ASSESSMENT --> DB
+    INTERVIEW --> DB
+    RECRUITER --> DB
+    ADMIN --> DB
 
-Planned technologies include:
+### Main Modules
 
-Responsive Web Frontend
-REST/JSON API
-Node.js/Express or Spring Boot
-PostgreSQL or MySQL
-JWT
-HTTPS/TLS
-Email/SMS gateway for OTP delivery
+| Module | Responsibility |
+|---|---|
+| **AuthModule** | Registration with OTP, login, JWT sessions, account lockout, and recruiter account requests |
+| **ProfileModule** | Student profile and resume management |
+| **ListingModule** | Internship/placement listings and filtering |
+| **ApplicationModule** | Application submission, duplicate prevention, and application tracking |
+| **AssessmentModule** | Timed mock tests, automatic scoring, and score history |
+| **InterviewPrepModule** | Interview question bank, mock-interview booking, and feedback |
+| **RecruiterModule** | Listing creation and applicant viewing/shortlisting |
+| **AdminModule** | Recruiter approval and placement reporting |
 
-Main Workflows
-Student Application
-Register
-   ↓
-OTP Verification
-   ↓
-Login
-   ↓
-Browse / Filter Listings
-   ↓
-Select Opportunity
-   ↓
-Apply
-   ↓
-Track Application Status
-Recruiter
-Account Request
-   ↓
-Admin Approval
-   ↓
-Login
-   ↓
-Create Listing
-   ↓
-View Applicants
-   ↓
-Shortlist / Reject
-Placement Preparation
-Mock Test
-   ↓
-Automatic Scoring
-   ↓
-Score History
+##  Technology
 
-Interview Question Bank
-   ↓
-Mock Interview Booking
-   ↓
-Admin Feedback
+The architecture and design documentation currently specifies a **technology-agnostic implementation approach**.
+
+| Category | Planned Technology |
+|---|---|
+| **Frontend** | Responsive Web Frontend |
+| **Backend API** | REST/JSON API |
+| **Backend Framework** | Node.js/Express or Spring Boot |
+| **Database** | PostgreSQL or MySQL |
+| **Authentication** | JWT |
+| **Communication Security** | HTTPS/TLS |
+| **OTP Delivery** | Email/SMS Gateway |
+
+> The final implementation technology will be selected during development.
+
+---
+
+##  Main Workflows
+
+###  Student Application
+
+```mermaid
+flowchart LR
+    A[Register] --> B[OTP Verification]
+    B --> C[Login]
+    C --> D[Browse / Filter Listings]
+    D --> E[Select Opportunity]
+    E --> F[Apply]
+    F --> G[Track Application Status]
+```
+
+###  Recruiter Workflow
+
+```mermaid
+flowchart LR
+    A[Account Request] --> B[Admin Approval]
+    B --> C[Login]
+    C --> D[Create Listing]
+    D --> E[View Applicants]
+    E --> F[Shortlist / Reject]
+```
+
+###  Placement Preparation
+
+```mermaid
+flowchart LR
+    A[Mock Test] --> B[Automatic Scoring] --> C[Score History]
+```
+
+```mermaid
+flowchart LR
+    A[Interview Question Bank] --> B[Mock Interview Booking] --> C[Admin Feedback]
+```
+
+---
