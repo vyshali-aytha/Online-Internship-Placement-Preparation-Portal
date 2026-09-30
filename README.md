@@ -72,44 +72,28 @@ The main objectives of the project are:
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 The system follows a **Layered Architecture** consisting of three layers:
 
-```mermaid
-flowchart TB
-    UI["Presentation Layer<br/>Web UI"]
+| Layer | Components | Responsibility |
+|---|---|---|
+| **Presentation Layer** | Web UI | Provides the user interface for Students, Recruiters, and Placement Cell Admins |
+| **Business Layer** | AuthModule, ProfileModule, ListingModule, ApplicationModule, AssessmentModule, InterviewPrepModule, RecruiterModule, AdminModule | Handles the core business logic and system functionality |
+| **Data Layer** | Relational Database | Stores and manages persistent application data |
 
-    subgraph BL["Business Layer"]
-        AUTH["AuthModule"]
-        PROFILE["ProfileModule"]
-        LISTING["ListingModule"]
-        APPLICATION["ApplicationModule"]
-        ASSESSMENT["AssessmentModule"]
-        INTERVIEW["InterviewPrepModule"]
-        RECRUITER["RecruiterModule"]
-        ADMIN["AdminModule"]
-    end
+### Architecture Flow
 
-    DB["Data Layer<br/>Relational Database"]
+**Presentation Layer**  
+Web UI  
+↓  
+**Business Layer**  
+AuthModule · ProfileModule · ListingModule · ApplicationModule · AssessmentModule · InterviewPrepModule · RecruiterModule · AdminModule  
+↓  
+**Data Layer**  
+Relational Database
 
-    UI --> AUTH
-    UI --> PROFILE
-    UI --> LISTING
-    UI --> APPLICATION
-    UI --> ASSESSMENT
-    UI --> INTERVIEW
-    UI --> RECRUITER
-    UI --> ADMIN
-
-    AUTH --> DB
-    PROFILE --> DB
-    LISTING --> DB
-    APPLICATION --> DB
-    ASSESSMENT --> DB
-    INTERVIEW --> DB
-    RECRUITER --> DB
-    ADMIN --> DB
+The architecture separates the **user interface**, **business functionality**, and **persistent data storage**.
 
 ### Main Modules
 
