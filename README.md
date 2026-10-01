@@ -5,9 +5,9 @@
 | **Thejus A Reddy**   | 
 | **Yashas Sadananda** |
 
-A web-based platform designed to support students in their internship and placement preparation while providing recruiters and the placement cell with tools to manage opportunities, applications, and placement activities.
+A web-based platform designed to support students in their internship and placement preparation while providing recruiters and the placement cell with tools to manage opportunities, applications and placement activities.
 
-This project is developed as a Software Engineering Mini Project covering requirements specification, software architecture and design, UML modelling, testing, and requirements traceability.
+This project is developed as a Software Engineering Mini Project covering requirements specification, software architecture and design, UML modelling, testing and requirements traceability.
 
 ---
 
