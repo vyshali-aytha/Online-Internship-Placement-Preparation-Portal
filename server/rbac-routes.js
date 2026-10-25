@@ -46,5 +46,83 @@ export function createRbacRouter(dbPool) {
     }
   );
 
+  router.patch(
+    '/admin/recruiter-requests/:id/status',
+    requireAuth,
+    requireRoles('ADMIN'),
+    async (req, res, next) => {
+      const id = Number(req.params.id);
+      const action =
+        typeof req.body?.status === 'string'
+          ? req.body.status.trim().toUpperCase()
+          : '';
+
+      if (
+        !Number.isSafeInteger(id) ||
+        id <= 0 ||
+        !['APPROVED', 'REJECTED'].includes(action)
+      ) {
+        return res.status(400).json({
+          message: 'Request ID and decision action must be valid.',
+        });
+      }
+
+      let connection;
+      try {
+        connection = await dbPool.getConnection();
+        await connection.beginTransaction();
+
+        const [rows] = await connection.execute(
+          `SELECT id, status
+           FROM recruiter_requests
+           WHERE id = ?
+           LIMIT 1
+           FOR UPDATE`,
+          [id]
+        );
+        const request = rows[0];
+
+        if (!request) {
+          await connection.rollback();
+          return res.status(404).json({
+            message: 'Recruiter request not found.',
+          });
+        }
+
+        if (request.status !== 'PENDING') {
+          await connection.rollback();
+          return res.status(409).json({
+            message: 'Recruiter request has already been decided.',
+          });
+        }
+
+        await connection.execute(
+          `UPDATE recruiter_requests
+           SET status = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = NULL
+           WHERE id = ? AND status = 'PENDING'`,
+          [action, id]
+        );
+        await connection.commit();
+
+        return res.status(200).json({
+          id,
+          status: action,
+          reviewedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        if (connection) {
+          try {
+            await connection.rollback();
+          } catch (rollbackError) {
+            console.error('Recruiter decision rollback failed:', rollbackError);
+          }
+        }
+        return next(error);
+      } finally {
+        connection?.release();
+      }
+    }
+  );
+
   return router;
 }

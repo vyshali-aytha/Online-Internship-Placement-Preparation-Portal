@@ -50,7 +50,39 @@ const recruiterRows = new Map([
   }],
 ]);
 
+const fakeConnection = {
+  async beginTransaction() {},
+  async rollback() {},
+  async commit() {},
+  release() {},
+  async execute(sql, values = []) {
+    const normalized = String(sql).replace(/\s+/g, ' ').trim().toUpperCase();
+
+    if (normalized.includes('SELECT ID, STATUS FROM RECRUITER_REQUESTS')) {
+      const row = recruiterRows.get(String(values[0]));
+      return [row ? [{ id: row.id, status: row.status }] : [], []];
+    }
+
+    if (normalized.includes('UPDATE RECRUITER_REQUESTS')) {
+      const [action, id] = values;
+      const row = recruiterRows.get(String(id));
+
+      if (!row || row.status !== 'PENDING') return [{ affectedRows: 0 }, []];
+
+      row.status = action;
+      row.reviewed_at = '2026-10-26 00:00:00';
+      row.reviewed_by = null;
+      return [{ affectedRows: 1 }, []];
+    }
+
+    throw new Error(`Unexpected SQL in decision test database: ${sql}`);
+  },
+};
+
 const fakePool = {
+  async getConnection() {
+    return fakeConnection;
+  },
   async execute(sql, values = []) {
     const normalized = String(sql)
       .replace(/\s+/g, ' ')
@@ -286,6 +318,90 @@ test('admin pending-request endpoint is protected and excludes password hashes',
     JSON.stringify(admin.body).includes('password_hash'),
     false
   );
+});
+
+test('admin can approve and reject pending recruiter requests', async () => {
+  const admin = signJwt('admin:test@example.edu', 'ADMIN');
+  const pendingRows = [...recruiterRows.values()].filter((row) => row.status === 'PENDING');
+
+  const approveId = pendingRows[0].id;
+  const rejectionId = 20;
+  recruiterRows.set(String(rejectionId), {
+    id: rejectionId,
+    full_name: 'Decision Recruiter',
+    email: 'decision@example.com',
+    company_name: 'Decision Co',
+    status: 'PENDING',
+    password_hash: 'dummy-hash',
+    created_at: '2026-10-26 00:00:00',
+    reviewed_at: null,
+    reviewed_by: null,
+  });
+
+  const approved = await apiRequest(`/api/admin/recruiter-requests/${approveId}/status`, {
+    method: 'PATCH',
+    token: admin,
+    body: { status: 'APPROVED' },
+  });
+  assert.equal(approved.status, 200);
+  assert.equal(approved.body.status, 'APPROVED');
+  assert.equal(recruiterRows.get(String(approveId)).status, 'APPROVED');
+  assert.equal(JSON.stringify(approved.body).includes('password_hash'), false);
+
+  const rejected = await apiRequest(`/api/admin/recruiter-requests/${rejectionId}/status`, {
+    method: 'PATCH',
+    token: admin,
+    body: { status: 'REJECTED' },
+  });
+  assert.equal(rejected.status, 200);
+  assert.equal(rejected.body.status, 'REJECTED');
+  assert.equal(recruiterRows.get(String(rejectionId)).status, 'REJECTED');
+
+  const repeat = await apiRequest(`/api/admin/recruiter-requests/${approveId}/status`, {
+    method: 'PATCH',
+    token: admin,
+    body: { status: 'REJECTED' },
+  });
+  assert.equal(repeat.status, 409);
+});
+
+test('admin decision endpoint rejects unauthorized, invalid, and missing requests', async () => {
+  const student = signJwt('42', 'STUDENT');
+  const admin = signJwt('admin:test@example.edu', 'ADMIN');
+
+  const unauthenticated = await apiRequest('/api/admin/recruiter-requests/18/status', {
+    method: 'PATCH',
+    body: { status: 'APPROVED' },
+  });
+  assert.equal(unauthenticated.status, 401);
+
+  const forbidden = await apiRequest('/api/admin/recruiter-requests/18/status', {
+    method: 'PATCH',
+    token: student,
+    body: { status: 'APPROVED' },
+  });
+  assert.equal(forbidden.status, 403);
+
+  const invalidId = await apiRequest('/api/admin/recruiter-requests/not-a-number/status', {
+    method: 'PATCH',
+    token: admin,
+    body: { status: 'APPROVED' },
+  });
+  assert.equal(invalidId.status, 400);
+
+  const invalidAction = await apiRequest('/api/admin/recruiter-requests/18/status', {
+    method: 'PATCH',
+    token: admin,
+    body: { status: 'PENDING' },
+  });
+  assert.equal(invalidAction.status, 400);
+
+  const missing = await apiRequest('/api/admin/recruiter-requests/999/status', {
+    method: 'PATCH',
+    token: admin,
+    body: { status: 'APPROVED' },
+  });
+  assert.equal(missing.status, 404);
 });
 
 test('configured administrator can sign in and access protected admin routes', async () => {
