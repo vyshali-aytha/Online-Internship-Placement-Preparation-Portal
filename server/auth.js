@@ -297,6 +297,63 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+router.post('/recruiter/login', async (req, res, next) => {
+  const email = normalizedEmail(req.body?.email);
+  const password =
+    typeof req.body?.password === 'string'
+      ? req.body.password
+      : '';
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: 'Email and password are required.',
+    });
+  }
+
+  try {
+    const [rows] = await pool.execute(
+      `SELECT id, password_hash, status
+       FROM recruiter_requests
+       WHERE email = ?
+       LIMIT 1`,
+      [email],
+    );
+
+    const recruiter = rows[0];
+
+    if (
+      !recruiter ||
+      typeof recruiter.password_hash !== 'string' ||
+      !(await bcrypt.compare(password, recruiter.password_hash))
+    ) {
+      return res.status(401).json({
+        message: 'Invalid email or password.',
+      });
+    }
+
+    if (
+      typeof recruiter.status !== 'string' ||
+      recruiter.status.toUpperCase() !== 'APPROVED'
+    ) {
+      return res.status(403).json({
+        message: 'Recruiter account is not approved.',
+      });
+    }
+
+    return res.json({
+      token: signJwt(String(recruiter.id), 'RECRUITER'),
+      expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    });
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(503).json({
+        message: 'Recruiter account storage has not been initialized.',
+      });
+    }
+
+    return next(error);
+  }
+});
 router.get('/me', requireAuth, requireRoles('STUDENT'), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(

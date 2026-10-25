@@ -65,7 +65,10 @@ test('JWT normalizes roles and rejects tampering', () => {
   assert.ok(payload.exp > payload.iat);
 
   assert.throws(() => signJwt('test-user', 'SUPERUSER'));
-  assert.throws(() => verifyJwt(`${token.slice(0, -1)}x`));
+  const [headerPart, payloadPart, signaturePart] = token.split('.');
+  const replacementFirstChar = signaturePart[0] === 'A' ? 'B' : 'A';
+  const tamperedSignature = `${replacementFirstChar}${signaturePart.slice(1)}`;
+  assert.throws(() => verifyJwt(`${headerPart}.${payloadPart}.${tamperedSignature}`));
   assert.throws(() => verifyJwt('malformed.token'));
 });
 
