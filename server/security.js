@@ -14,20 +14,26 @@ function base64Url(value) {
 }
 
 function parseExpiresIn(value) {
-  if (/^\d+$/.test(value)) return Number(value);
+  const integerMatch = /^([1-9]\d*)$/.exec(value);
 
-  const match = /^([1-9]\d*)([smhd])$/.exec(value);
-
-  if (!match) {
-    throw new Error(
-      'JWT_EXPIRES_IN must be a duration such as 15m, 1h, or 86400.'
-    );
+  if (integerMatch) {
+    const seconds = Number(integerMatch[1]);
+    if (Number.isSafeInteger(seconds) && seconds > 0) return seconds;
   }
 
-  const amount = Number(match[1]);
-  const unitSeconds = { s: 1, m: 60, h: 3600, d: 86400 }[match[2]];
+  const durationMatch = /^([1-9]\d*)([smhd])$/.exec(value);
 
-  return amount * unitSeconds;
+  if (durationMatch) {
+    const amount = Number(durationMatch[1]);
+    const unitSeconds = { s: 1, m: 60, h: 3600, d: 86400 }[durationMatch[2]];
+    const seconds = amount * unitSeconds;
+
+    if (Number.isSafeInteger(seconds) && seconds > 0) return seconds;
+  }
+
+  throw new Error(
+    'JWT_EXPIRES_IN must be a positive duration such as 15m, 1h, or 86400.'
+  );
 }
 
 function jwtSecret() {
