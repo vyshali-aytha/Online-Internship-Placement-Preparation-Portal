@@ -287,3 +287,64 @@ test('admin pending-request endpoint is protected and excludes password hashes',
     false
   );
 });
+
+test('configured administrator can sign in and access protected admin routes', async () => {
+  const originalEmail = process.env.ADMIN_EMAIL;
+  const originalHash = process.env.ADMIN_PASSWORD_HASH;
+
+  try {
+    delete process.env.ADMIN_EMAIL;
+    delete process.env.ADMIN_PASSWORD_HASH;
+
+    const unavailable = await apiRequest('/api/auth/admin/login', {
+      method: 'POST',
+      body: {
+        email: 'admin@example.edu',
+        password: 'AdminPass123!',
+      },
+    });
+
+    assert.equal(unavailable.status, 503);
+
+    process.env.ADMIN_EMAIL = 'admin@example.edu';
+    process.env.ADMIN_PASSWORD_HASH = await bcrypt.hash(
+      'AdminPass123!',
+      10
+    );
+
+    const wrongPassword = await apiRequest('/api/auth/admin/login', {
+      method: 'POST',
+      body: {
+        email: 'admin@example.edu',
+        password: 'WrongAdminPass123!',
+      },
+    });
+
+    assert.equal(wrongPassword.status, 401);
+
+    const login = await apiRequest('/api/auth/admin/login', {
+      method: 'POST',
+      body: {
+        email: 'admin@example.edu',
+        password: 'AdminPass123!',
+      },
+    });
+
+    assert.equal(login.status, 200);
+    assert.equal(typeof login.body.token, 'string');
+
+    const adminResponse = await apiRequest(
+      '/api/admin/recruiter-requests',
+      { token: login.body.token }
+    );
+
+    assert.equal(adminResponse.status, 200);
+    assert.ok(Array.isArray(adminResponse.body));
+  } finally {
+    if (originalEmail === undefined) delete process.env.ADMIN_EMAIL;
+    else process.env.ADMIN_EMAIL = originalEmail;
+
+    if (originalHash === undefined) delete process.env.ADMIN_PASSWORD_HASH;
+    else process.env.ADMIN_PASSWORD_HASH = originalHash;
+  }
+});
