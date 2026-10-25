@@ -6,6 +6,7 @@
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite --host 0.0.0.0",
     "dev:server": "node --watch server/index.js",
+    "test": "node --test",
     "build": "tsc -b && vite build",
     "start": "node server/index.js"
   },
