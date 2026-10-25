@@ -1,8 +1,32 @@
-CREATE DATABASE IF NOT EXISTS oipp;
+CREATE DATABASE IF NOT EXISTS oipp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE oipp;
 
+CREATE TABLE IF NOT EXISTS students (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  full_name VARCHAR(120) NOT NULL,
+  institutional_email VARCHAR(254) NOT NULL,
+  student_id VARCHAR(64) NOT NULL,
+  course VARCHAR(120) NOT NULL,
+  password_hash VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_students_email (institutional_email),
+  UNIQUE KEY uq_students_student_id (student_id)
+);
+
+CREATE TABLE IF NOT EXISTS registration_otps (
+  institutional_email VARCHAR(254) NOT NULL PRIMARY KEY,
+  full_name VARCHAR(120) NOT NULL,
+  student_id VARCHAR(64) NOT NULL,
+  course VARCHAR(120) NOT NULL,
+  password_hash VARCHAR(100) NOT NULL,
+  otp_digest CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  sent_at DATETIME NOT NULL,
+  failed_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS recruiter_requests (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   company_name VARCHAR(150) NOT NULL,
@@ -10,5 +34,5 @@ CREATE TABLE IF NOT EXISTS recruiter_requests (
   status ENUM('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   reviewed_at TIMESTAMP NULL,
-  reviewed_by INT NULL
+  reviewed_by BIGINT UNSIGNED NULL
 ) ENGINE=InnoDB;
