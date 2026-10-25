@@ -13,6 +13,8 @@ dotenv.config({
 const { default: authRouter } = await import('./auth.js');
 const { pool } = await import('./db.js');
 const { createRbacRouter } = await import('./rbac-routes.js');
+const { createRecruiterRequestRouter } =
+  await import('./recruiter-requests.js');
 const { createRecruiterApprovalStatusResolver } =
   await import('./recruiterApproval.js');
 
@@ -37,6 +39,7 @@ app.locals.getRecruiterApprovalStatus =
 
 app.use('/api/auth', authRouter);
 app.use('/api', createRbacRouter(pool));
+app.use('/api', createRecruiterRequestRouter(pool));
 
 app.get('/api/health', (_req, res) => {
   return res.json({ status: 'ok' });
