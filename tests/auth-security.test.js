@@ -131,21 +131,12 @@ test('too-short JWT_SECRET is rejected', () => {
 
 test('invalid JWT_EXPIRES_IN configurations are rejected', () => {
   withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    for (const duration of ['-1', 'soon', '1w', ' 1h']) {
+    for (const duration of ['0', '-1', 'soon', '1w', ' 1h', 'Infinity', '9007199254740992']) {
       assert.throws(
         () => withEnv({ JWT_EXPIRES_IN: duration }, () => signJwt('test-student-id', 'student')),
         /JWT_EXPIRES_IN/,
       );
     }
-  });
-});
-
-test('zero JWT_EXPIRES_IN exposes an immediate-expiry configuration defect', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    const token = withEnv({ JWT_EXPIRES_IN: '0' }, () => signJwt('test-student-id', 'student'));
-
-    assert.doesNotThrow(() => signJwt('test-student-id', 'student'));
-    assert.throws(() => verifyJwt(token), /expired or invalid/);
   });
 });
 
