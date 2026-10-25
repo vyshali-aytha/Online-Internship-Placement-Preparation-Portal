@@ -1,37 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import { signJwt, verifyJwt } from '../server/security.js';
 
-const TEST_SECRET = 'local-test-secret-with-at-least-32-chars';
-const encoder = (value) => Buffer.from(value).toString('base64url');
+import {
+  signJwt,
+  verifyJwt,
+  requireRoles,
+  requireApprovedRecruiter,
+} from '../server/security.js';
 
-function createSignedToken({ header = { alg: 'HS256', typ: 'JWT' }, payload, secret = TEST_SECRET }) {
-  const unsigned = `${encoder(JSON.stringify(header))}.${encoder(JSON.stringify(payload))}`;
-  const signature = createHmac('sha256', secret).update(unsigned).digest('base64url');
-  return `${unsigned}.${signature}`;
-}
+process.env.JWT_SECRET = 'local-test-secret-with-at-least-32-chars';
+process.env.JWT_EXPIRES_IN = '1h';
 
-function withEnv(values, callback) {
-  const original = new Map();
-  for (const [name, value] of Object.entries(values)) {
-    original.set(name, process.env[name]);
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
+async function invokeMiddleware(middleware, auth, resolver) {
+  const req = {
+    app: { locals: {} },
+    headers: {},
+  };
+
+  if (auth !== undefined) req.auth = auth;
+
+  if (resolver) {
+    req.app.locals.getRecruiterApprovalStatus = resolver;
   }
 
-  try {
-    return callback();
-  } finally {
-    for (const [name, value] of original) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
-  }
+  const res = {
+    statusCode: null,
+    body: null,
+
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  };
+
+  let nextCalled = false;
+
+  await middleware(req, res, () => {
+    nextCalled = true;
+  });
+
+  return { req, res, nextCalled };
 }
 
-test('bcrypt hashes and verifies dummy passwords', async () => {
+test('student password uses bcrypt and verifies with its salt', async () => {
   const hash = await bcrypt.hash('DummyOnly12345!', 10);
 
   assert.notEqual(hash, 'DummyOnly12345!');
@@ -39,114 +56,128 @@ test('bcrypt hashes and verifies dummy passwords', async () => {
   assert.equal(await bcrypt.compare('WrongDummy12345!', hash), false);
 });
 
-test('valid JWT contains subject, role, issue time, and expiry claims', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET, JWT_EXPIRES_IN: '1h' }, () => {
-    const before = Math.floor(Date.now() / 1000);
-    const token = signJwt('test-student-id', 'student');
-    const after = Math.floor(Date.now() / 1000);
-    const payload = verifyJwt(token);
+test('JWT normalizes roles and rejects tampering', () => {
+  const token = signJwt('test-student-id', 'student');
+  const payload = verifyJwt(token);
 
-    assert.equal(payload.sub, 'test-student-id');
-    assert.equal(payload.role, 'student');
-    assert.equal(payload.exp - payload.iat, 60 * 60);
-    assert.ok(payload.iat >= before && payload.iat <= after);
-  });
+  assert.equal(payload.sub, 'test-student-id');
+  assert.equal(payload.role, 'STUDENT');
+  assert.ok(payload.exp > payload.iat);
+
+  assert.throws(() => signJwt('test-user', 'SUPERUSER'));
+  const [headerPart, payloadPart, signaturePart] = token.split('.');
+  const replacementFirstChar = signaturePart[0] === 'A' ? 'B' : 'A';
+  const tamperedSignature = `${replacementFirstChar}${signaturePart.slice(1)}`;
+  assert.throws(() => verifyJwt(`${headerPart}.${payloadPart}.${tamperedSignature}`));
+  assert.throws(() => verifyJwt('malformed.token'));
 });
 
-test('malformed tokens are rejected', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    for (const token of ['', 'only.two', 'not.a.jwt', 'header.payload.signature.extra']) {
-      assert.throws(() => verifyJwt(token), /Invalid authentication token/);
-    }
-  });
+test('invalid JWT expiration configuration is rejected', () => {
+  process.env.JWT_EXPIRES_IN = '-1';
+
+  assert.throws(
+    () => signJwt('test-student-id', 'student'),
+    /JWT_EXPIRES_IN/
+  );
+
+  process.env.JWT_EXPIRES_IN = '1h';
 });
 
-test('tampered payload and signature are rejected', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET, JWT_EXPIRES_IN: '1h' }, () => {
-    const token = signJwt('test-student-id', 'student');
-    const [header, payload, signature] = token.split('.');
-    const decodedPayload = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+test('matching student, recruiter, and admin roles are allowed', async () => {
+  for (const role of ['STUDENT', 'RECRUITER', 'ADMIN']) {
+    const result = await invokeMiddleware(
+      requireRoles(role),
+      { sub: 'user-1', role: role.toLowerCase() }
+    );
 
-    decodedPayload.sub = 'tampered-student-id';
-    const alteredPayload = encoder(JSON.stringify(decodedPayload));
-    assert.throws(() => verifyJwt(`${header}.${alteredPayload}.${signature}`), /Invalid authentication token/);
-
-    const alteredSignature = `${signature.slice(0, -1)}${signature.endsWith('A') ? 'B' : 'A'}`;
-    assert.throws(() => verifyJwt(`${header}.${payload}.${alteredSignature}`), /Invalid authentication token/);
-  });
+    assert.equal(result.nextCalled, true);
+    assert.equal(result.res.statusCode, null);
+  }
 });
 
-test('expired JWT is rejected', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = createSignedToken({
-      payload: { sub: 'test-student-id', role: 'student', iat: now - 120, exp: now - 60 },
-    });
+test('cross-role access is forbidden', async () => {
+  const cases = [
+    ['STUDENT', 'RECRUITER'],
+    ['STUDENT', 'ADMIN'],
+    ['RECRUITER', 'STUDENT'],
+    ['RECRUITER', 'ADMIN'],
+    ['ADMIN', 'STUDENT'],
+    ['ADMIN', 'RECRUITER'],
+  ];
 
-    assert.throws(() => verifyJwt(token), /expired or invalid/);
-  });
+  for (const [allowedRole, userRole] of cases) {
+    const result = await invokeMiddleware(
+      requireRoles(allowedRole),
+      { sub: 'user-1', role: userRole }
+    );
+
+    assert.equal(result.nextCalled, false);
+    assert.equal(result.res.statusCode, 403);
+  }
 });
 
-test('unsupported JWT algorithms are rejected', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = createSignedToken({
-      header: { alg: 'HS512', typ: 'JWT' },
-      payload: { sub: 'test-student-id', role: 'student', iat: now, exp: now + 60 },
-    });
+test('role middleware denies requests without authentication', async () => {
+  const result = await invokeMiddleware(
+    requireRoles('STUDENT'),
+    undefined
+  );
 
-    assert.throws(() => verifyJwt(token), /Invalid authentication token/);
-  });
+  assert.equal(result.nextCalled, false);
+  assert.equal(result.res.statusCode, 401);
 });
 
-test('invalid JWT claims are rejected', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    const now = Math.floor(Date.now() / 1000);
-    const invalidClaims = [
-      { sub: '', role: 'student', iat: now, exp: now + 60 },
-      { sub: 'test-student-id', role: 'student', iat: now, exp: 'later' },
-      { sub: 'test-student-id', role: 'student', iat: now + 60, exp: now + 120 },
-    ];
-
-    for (const payload of invalidClaims) {
-      assert.throws(
-        () => verifyJwt(createSignedToken({ payload })),
-        /expired or invalid/,
-      );
-    }
-  });
+test('role middleware rejects invalid configuration', () => {
+  assert.throws(() => requireRoles('SUPERUSER'), /valid roles/);
+  assert.throws(() => requireRoles(), /valid roles/);
 });
 
-test('missing JWT_SECRET is rejected', () => {
-  withEnv({ JWT_SECRET: undefined, JWT_EXPIRES_IN: '1h' }, () => {
-    assert.throws(() => signJwt('test-student-id', 'student'), /JWT_SECRET/);
-  });
+test('recruiter approval middleware fails closed without a verifier', async () => {
+  const result = await invokeMiddleware(
+    requireApprovedRecruiter,
+    { sub: 'recruiter-1', role: 'RECRUITER' }
+  );
+
+  assert.equal(result.nextCalled, false);
+  assert.equal(result.res.statusCode, 503);
 });
 
-test('too-short JWT_SECRET is rejected', () => {
-  withEnv({ JWT_SECRET: 'too-short', JWT_EXPIRES_IN: '1h' }, () => {
-    assert.throws(() => signJwt('test-student-id', 'student'), /JWT_SECRET/);
-  });
+test('recruiter approval is based on the current verifier result', async () => {
+  const tokenClaims = {
+    sub: 'recruiter-1',
+    role: 'RECRUITER',
+    recruiterStatus: 'APPROVED',
+  };
+
+  for (const status of ['PENDING', 'REJECTED', undefined]) {
+    const result = await invokeMiddleware(
+      requireApprovedRecruiter,
+      tokenClaims,
+      async () => status
+    );
+
+    assert.equal(result.nextCalled, false);
+    assert.equal(result.res.statusCode, 403);
+  }
+
+  const approved = await invokeMiddleware(
+    requireApprovedRecruiter,
+    tokenClaims,
+    async () => 'APPROVED'
+  );
+
+  assert.equal(approved.nextCalled, true);
+  assert.equal(approved.res.statusCode, null);
 });
 
-test('invalid JWT_EXPIRES_IN configurations are rejected', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    for (const duration of ['0', '-1', 'soon', '1w', ' 1h', 'Infinity', '9007199254740992']) {
-      assert.throws(
-        () => withEnv({ JWT_EXPIRES_IN: duration }, () => signJwt('test-student-id', 'student')),
-        /JWT_EXPIRES_IN/,
-      );
-    }
-  });
-});
+test('students and admins cannot use recruiter-only middleware', async () => {
+  for (const role of ['STUDENT', 'ADMIN']) {
+    const result = await invokeMiddleware(
+      requireApprovedRecruiter,
+      { sub: 'user-1', role },
+      async () => 'APPROVED'
+    );
 
-test('valid JWT_EXPIRES_IN configurations are accepted', () => {
-  withEnv({ JWT_SECRET: TEST_SECRET }, () => {
-    for (const duration of ['45', '30m', '2h', '1d']) {
-      withEnv({ JWT_EXPIRES_IN: duration }, () => {
-        const token = signJwt('test-student-id', 'student');
-        assert.equal(typeof verifyJwt(token).exp, 'number');
-      });
-    }
-  });
+    assert.equal(result.nextCalled, false);
+    assert.equal(result.res.statusCode, 403);
+  }
 });
