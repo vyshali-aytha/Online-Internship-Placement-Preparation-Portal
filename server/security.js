@@ -17,6 +17,7 @@ function parseExpiresIn(value) {
   if (/^\d+$/.test(value)) return Number(value);
 
   const match = /^([1-9]\d*)([smhd])$/.exec(value);
+
   if (!match) {
     throw new Error(
       'JWT_EXPIRES_IN must be a duration such as 15m, 1h, or 86400.'
@@ -25,6 +26,7 @@ function parseExpiresIn(value) {
 
   const amount = Number(match[1]);
   const unitSeconds = { s: 1, m: 60, h: 3600, d: 86400 }[match[2]];
+
   return amount * unitSeconds;
 }
 
@@ -38,24 +40,34 @@ function jwtSecret() {
   return secret;
 }
 
-export function signJwt(subject, role = 'student') {
+export function signJwt(subject, role = 'STUDENT') {
   if (typeof subject !== 'string' || subject.length === 0) {
     throw new Error('JWT subject must be a non-empty string.');
   }
 
-  if (!normalizeRole(role)) {
+  const normalizedRole = normalizeRole(role);
+
+  if (!normalizedRole) {
     throw new Error('JWT role must be STUDENT, RECRUITER, or ADMIN.');
   }
 
   const now = Math.floor(Date.now() / 1000);
   const expiresIn = parseExpiresIn(process.env.JWT_EXPIRES_IN || '1h');
 
-  const header = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = base64Url(
-    JSON.stringify({ sub: subject, role, iat: now, exp: now + expiresIn })
-  );
+  const header = base64Url(JSON.stringify({
+    alg: 'HS256',
+    typ: 'JWT',
+  }));
+
+  const payload = base64Url(JSON.stringify({
+    sub: subject,
+    role: normalizedRole,
+    iat: now,
+    exp: now + expiresIn,
+  }));
 
   const unsigned = `${header}.${payload}`;
+
   const signature = base64Url(
     createHmac('sha256', jwtSecret()).update(unsigned).digest()
   );
@@ -69,11 +81,13 @@ export function verifyJwt(token) {
   }
 
   const parts = token.split('.');
+
   if (parts.length !== 3 || parts.some((part) => part.length === 0)) {
     throw new Error('Invalid authentication token.');
   }
 
   const [headerPart, payloadPart, signaturePart] = parts;
+
   let header;
   let payload;
 
@@ -98,7 +112,11 @@ export function verifyJwt(token) {
   }
 
   const unsigned = `${headerPart}.${payloadPart}`;
-  const expected = createHmac('sha256', jwtSecret()).update(unsigned).digest();
+
+  const expected = createHmac('sha256', jwtSecret())
+    .update(unsigned)
+    .digest();
+
   const actual = Buffer.from(signaturePart, 'base64url');
 
   if (
@@ -109,6 +127,7 @@ export function verifyJwt(token) {
   }
 
   const now = Math.floor(Date.now() / 1000);
+  const role = normalizeRole(payload.role);
 
   if (
     !Number.isInteger(payload.exp) ||
@@ -117,12 +136,12 @@ export function verifyJwt(token) {
     payload.iat > now ||
     typeof payload.sub !== 'string' ||
     payload.sub.length === 0 ||
-    !normalizeRole(payload.role)
+    !role
   ) {
     throw new Error('Authentication token is expired or invalid.');
   }
 
-  return payload;
+  return { ...payload, role };
 }
 
 export function requireAuth(req, res, next) {
@@ -152,16 +171,6 @@ export function requireAuth(req, res, next) {
   }
 }
 
-/**
- * Restricts a route to one or more authenticated roles.
- *
- * Example:
- * app.get('/api/student/profile',
- *   requireAuth,
- *   requireRoles('STUDENT'),
- *   handler
- * );
- */
 export function requireRoles(...roles) {
   const allowedRoles = roles.map(normalizeRole);
 
@@ -170,7 +179,7 @@ export function requireRoles(...roles) {
     allowedRoles.some((role) => role === null)
   ) {
     throw new TypeError(
-      'requireRoles needs one or more valid roles: STUDENT, RECRUITER, ADMIN.'
+      'requireRoles needs valid roles: STUDENT, RECRUITER, ADMIN.'
     );
   }
 
@@ -194,12 +203,15 @@ export function requireRoles(...roles) {
 }
 
 /**
- * Extra restriction for recruiter operations that require approval,
- * such as publishing internship listings.
+ * Recruiter approval must be checked against the application's
+ * authoritative data source, not a potentially stale JWT claim.
  *
- * Missing approval information is denied by default.
+ * A recruiter route must configure:
+ * app.locals.getRecruiterApprovalStatus = async (recruiterId) => ...
+ *
+ * The returned status must represent the current database status.
  */
-export function requireApprovedRecruiter(req, res, next) {
+export async function requireApprovedRecruiter(req, res, next) {
   if (!req.auth) {
     return res.status(401).json({
       message: 'Authentication required.',
@@ -212,19 +224,29 @@ export function requireApprovedRecruiter(req, res, next) {
     });
   }
 
-  const status =
-    req.auth.recruiterStatus ??
-    req.auth.approvalStatus ??
-    req.auth.status;
+  const getApprovalStatus =
+    req.app?.locals?.getRecruiterApprovalStatus;
 
-  if (
-    typeof status !== 'string' ||
-    status.trim().toUpperCase() !== 'APPROVED'
-  ) {
-    return res.status(403).json({
-      message: 'Recruiter account must be approved for this operation.',
+  if (typeof getApprovalStatus !== 'function') {
+    return res.status(503).json({
+      message: 'Recruiter approval verification is not configured.',
     });
   }
 
-  return next();
+  try {
+    const status = await getApprovalStatus(req.auth.sub);
+
+    if (
+      typeof status !== 'string' ||
+      status.trim().toUpperCase() !== 'APPROVED'
+    ) {
+      return res.status(403).json({
+        message: 'Recruiter account must be approved for this operation.',
+      });
+    }
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
 }

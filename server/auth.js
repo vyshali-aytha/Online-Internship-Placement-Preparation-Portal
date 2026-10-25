@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from './db.js';
-import { requireAuth, signJwt } from './security.js';
+import { requireAuth, requireRoles, signJwt } from './security.js';
 
 const router = Router();
 const otpLifetimeMinutes = 10;
@@ -297,7 +297,7 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-router.get('/me', requireAuth, async (req, res, next) => {
+router.get('/me', requireAuth, requireRoles('STUDENT'), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
       'SELECT id FROM students WHERE id = ? LIMIT 1',

@@ -12,11 +12,16 @@ import {
 process.env.JWT_SECRET = 'local-test-secret-with-at-least-32-chars';
 process.env.JWT_EXPIRES_IN = '1h';
 
-function invokeMiddleware(middleware, auth) {
-  const req = {};
+async function invokeMiddleware(middleware, auth, resolver) {
+  const req = {
+    app: { locals: {} },
+    headers: {},
+  };
 
-  if (auth !== undefined) {
-    req.auth = auth;
+  if (auth !== undefined) req.auth = auth;
+
+  if (resolver) {
+    req.app.locals.getRecruiterApprovalStatus = resolver;
   }
 
   const res = {
@@ -36,7 +41,7 @@ function invokeMiddleware(middleware, auth) {
 
   let nextCalled = false;
 
-  middleware(req, res, () => {
+  await middleware(req, res, () => {
     nextCalled = true;
   });
 
@@ -51,19 +56,20 @@ test('student password uses bcrypt and verifies with its salt', async () => {
   assert.equal(await bcrypt.compare('WrongDummy12345!', hash), false);
 });
 
-test('JWT includes subject, role, and expiry and rejects tampering', () => {
+test('JWT normalizes roles and rejects tampering', () => {
   const token = signJwt('test-student-id', 'student');
   const payload = verifyJwt(token);
 
   assert.equal(payload.sub, 'test-student-id');
-  assert.equal(payload.role, 'student');
+  assert.equal(payload.role, 'STUDENT');
   assert.ok(payload.exp > payload.iat);
 
+  assert.throws(() => signJwt('test-user', 'SUPERUSER'));
   assert.throws(() => verifyJwt(`${token.slice(0, -1)}x`));
   assert.throws(() => verifyJwt('malformed.token'));
 });
 
-test('expired JWT configuration is rejected', () => {
+test('invalid JWT expiration configuration is rejected', () => {
   process.env.JWT_EXPIRES_IN = '-1';
 
   assert.throws(
@@ -74,36 +80,30 @@ test('expired JWT configuration is rejected', () => {
   process.env.JWT_EXPIRES_IN = '1h';
 });
 
-test('RBAC allows a user whose role matches the route', () => {
-  const cases = [
-    ['student', 'STUDENT'],
-    ['RECRUITER', 'RECRUITER'],
-    ['admin', 'ADMIN'],
-  ];
-
-  for (const [userRole, allowedRole] of cases) {
-    const result = invokeMiddleware(
-      requireRoles(allowedRole),
-      { sub: 'user-1', role: userRole }
+test('matching student, recruiter, and admin roles are allowed', async () => {
+  for (const role of ['STUDENT', 'RECRUITER', 'ADMIN']) {
+    const result = await invokeMiddleware(
+      requireRoles(role),
+      { sub: 'user-1', role: role.toLowerCase() }
     );
 
-    assert.equal(result.nextCalled, true, `${userRole} should be allowed`);
+    assert.equal(result.nextCalled, true);
     assert.equal(result.res.statusCode, null);
   }
 });
 
-test('RBAC denies access when a user has the wrong role', () => {
+test('cross-role access is forbidden', async () => {
   const cases = [
-    ['student', 'RECRUITER'],
-    ['student', 'ADMIN'],
-    ['recruiter', 'STUDENT'],
-    ['recruiter', 'ADMIN'],
-    ['admin', 'STUDENT'],
-    ['admin', 'RECRUITER'],
+    ['STUDENT', 'RECRUITER'],
+    ['STUDENT', 'ADMIN'],
+    ['RECRUITER', 'STUDENT'],
+    ['RECRUITER', 'ADMIN'],
+    ['ADMIN', 'STUDENT'],
+    ['ADMIN', 'RECRUITER'],
   ];
 
-  for (const [userRole, allowedRole] of cases) {
-    const result = invokeMiddleware(
+  for (const [allowedRole, userRole] of cases) {
+    const result = await invokeMiddleware(
       requireRoles(allowedRole),
       { sub: 'user-1', role: userRole }
     );
@@ -113,69 +113,68 @@ test('RBAC denies access when a user has the wrong role', () => {
   }
 });
 
-test('RBAC denies requests without an authenticated user', () => {
-  const result = invokeMiddleware(requireRoles('STUDENT'), undefined);
+test('role middleware denies requests without authentication', async () => {
+  const result = await invokeMiddleware(
+    requireRoles('STUDENT'),
+    undefined
+  );
 
   assert.equal(result.nextCalled, false);
   assert.equal(result.res.statusCode, 401);
 });
 
-test('RBAC rejects an invalid role configuration', () => {
-  assert.throws(
-    () => requireRoles('SUPERUSER'),
-    /valid roles/
-  );
-
-  assert.throws(
-    () => requireRoles(),
-    /valid roles/
-  );
+test('role middleware rejects invalid configuration', () => {
+  assert.throws(() => requireRoles('SUPERUSER'), /valid roles/);
+  assert.throws(() => requireRoles(), /valid roles/);
 });
 
-test('only approved recruiters pass the approval middleware', () => {
-  for (const status of [undefined, 'PENDING', 'REJECTED']) {
-    const auth = { sub: 'recruiter-1', role: 'RECRUITER' };
+test('recruiter approval middleware fails closed without a verifier', async () => {
+  const result = await invokeMiddleware(
+    requireApprovedRecruiter,
+    { sub: 'recruiter-1', role: 'RECRUITER' }
+  );
 
-    if (status !== undefined) {
-      auth.recruiterStatus = status;
-    }
+  assert.equal(result.nextCalled, false);
+  assert.equal(result.res.statusCode, 503);
+});
 
-    const result = invokeMiddleware(requireApprovedRecruiter, auth);
+test('recruiter approval is based on the current verifier result', async () => {
+  const tokenClaims = {
+    sub: 'recruiter-1',
+    role: 'RECRUITER',
+    recruiterStatus: 'APPROVED',
+  };
+
+  for (const status of ['PENDING', 'REJECTED', undefined]) {
+    const result = await invokeMiddleware(
+      requireApprovedRecruiter,
+      tokenClaims,
+      async () => status
+    );
 
     assert.equal(result.nextCalled, false);
     assert.equal(result.res.statusCode, 403);
   }
 
-  const approved = invokeMiddleware(
+  const approved = await invokeMiddleware(
     requireApprovedRecruiter,
-    {
-      sub: 'recruiter-2',
-      role: 'recruiter',
-      recruiterStatus: 'APPROVED',
-    }
+    tokenClaims,
+    async () => 'APPROVED'
   );
 
   assert.equal(approved.nextCalled, true);
   assert.equal(approved.res.statusCode, null);
 });
 
-test('approval status does not grant recruiter access to another role', () => {
-  const result = invokeMiddleware(
-    requireApprovedRecruiter,
-    {
-      sub: 'student-1',
-      role: 'STUDENT',
-      recruiterStatus: 'APPROVED',
-    }
-  );
+test('students and admins cannot use recruiter-only middleware', async () => {
+  for (const role of ['STUDENT', 'ADMIN']) {
+    const result = await invokeMiddleware(
+      requireApprovedRecruiter,
+      { sub: 'user-1', role },
+      async () => 'APPROVED'
+    );
 
-  assert.equal(result.nextCalled, false);
-  assert.equal(result.res.statusCode, 403);
-});
-
-test('approval middleware requires authentication', () => {
-  const result = invokeMiddleware(requireApprovedRecruiter, undefined);
-
-  assert.equal(result.nextCalled, false);
-  assert.equal(result.res.statusCode, 401);
+    assert.equal(result.nextCalled, false);
+    assert.equal(result.res.statusCode, 403);
+  }
 });
