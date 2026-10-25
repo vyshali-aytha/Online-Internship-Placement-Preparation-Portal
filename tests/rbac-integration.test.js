@@ -10,12 +10,15 @@ import {
   requireRoles,
   requireApprovedRecruiter,
 } from '../server/security.js';
+import authRouter from '../server/auth.js';
+import { pool } from '../server/db.js';
 
 process.env.JWT_SECRET = 'local-test-secret-with-at-least-32-chars';
 process.env.JWT_EXPIRES_IN = '1h';
 
 const approvalStatuses = new Map();
 const app = express();
+app.use('/api/auth', authRouter);
 
 app.locals.getRecruiterApprovalStatus = async (recruiterId) =>
   approvalStatuses.get(recruiterId);
@@ -120,5 +123,47 @@ test('HTTP routes enforce role and live recruiter approval checks', async () => 
     assert.equal(unconfigured.status, 503);
   } finally {
     app.locals.getRecruiterApprovalStatus = resolver;
+  }
+});
+test('actual /api/auth/me endpoint enforces student authorization', async () => {
+  const originalExecute = pool.execute;
+
+  // Isolate the test from a local MySQL installation while exercising
+  // the actual authentication router and its real route middleware.
+  pool.execute = async (sql, values) => {
+    const normalizedSql = String(sql).replace(/\s+/g, ' ').trim();
+
+    if (normalizedSql !== 'SELECT id FROM students WHERE id = ? LIMIT 1') {
+      throw new Error(`Unexpected SQL in isolated integration test: ${sql}`);
+    }
+
+    const requestedId = String(values[0]);
+    const rows = requestedId === '42' ? [{ id: 42 }] : [];
+
+    return [rows, []];
+  };
+
+  try {
+    const unauthenticated = await request('/api/auth/me');
+    assert.equal(unauthenticated.status, 401);
+
+    const adminToken = signJwt('admin-1', 'ADMIN');
+    const wrongRole = await request('/api/auth/me', adminToken);
+    assert.equal(wrongRole.status, 403);
+
+    const studentToken = signJwt('42', 'STUDENT');
+    const validStudent = await request('/api/auth/me', studentToken);
+    assert.equal(validStudent.status, 200);
+    assert.equal(validStudent.body.id, 42);
+    assert.equal(validStudent.body.role, 'STUDENT');
+
+    const nonexistentStudentToken = signJwt('999', 'STUDENT');
+    const nonexistentStudent = await request(
+      '/api/auth/me',
+      nonexistentStudentToken
+    );
+    assert.equal(nonexistentStudent.status, 401);
+  } finally {
+    pool.execute = originalExecute;
   }
 });
