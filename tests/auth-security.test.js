@@ -18,7 +18,9 @@ async function invokeMiddleware(middleware, auth, resolver) {
     headers: {},
   };
 
-  if (auth !== undefined) req.auth = auth;
+  if (auth !== undefined) {
+    req.auth = auth;
+  }
 
   if (resolver) {
     req.app.locals.getRecruiterApprovalStatus = resolver;
@@ -56,7 +58,7 @@ test('student password uses bcrypt and verifies with its salt', async () => {
   assert.equal(await bcrypt.compare('WrongDummy12345!', hash), false);
 });
 
-test('JWT normalizes roles and rejects tampering', () => {
+test('JWT includes subject, normalized role, expiry, and rejects tampering', () => {
   const token = signJwt('test-student-id', 'student');
   const payload = verifyJwt(token);
 
@@ -65,10 +67,15 @@ test('JWT normalizes roles and rejects tampering', () => {
   assert.ok(payload.exp > payload.iat);
 
   assert.throws(() => signJwt('test-user', 'SUPERUSER'));
+
   const [headerPart, payloadPart, signaturePart] = token.split('.');
   const replacementFirstChar = signaturePart[0] === 'A' ? 'B' : 'A';
   const tamperedSignature = `${replacementFirstChar}${signaturePart.slice(1)}`;
-  assert.throws(() => verifyJwt(`${headerPart}.${payloadPart}.${tamperedSignature}`));
+
+  assert.throws(() =>
+    verifyJwt(`${headerPart}.${payloadPart}.${tamperedSignature}`)
+  );
+
   assert.throws(() => verifyJwt('malformed.token'));
 });
 
