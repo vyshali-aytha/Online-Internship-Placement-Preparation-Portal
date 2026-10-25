@@ -25,6 +25,12 @@ const verifyLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
 });
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
 
 function normalizedEmail(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -351,6 +357,52 @@ router.post('/recruiter/login', async (req, res, next) => {
       });
     }
 
+    return next(error);
+  }
+});
+router.post('/admin/login', adminLoginLimiter, async (req, res, next) => {
+  const email = normalizedEmail(req.body?.email);
+  const password =
+    typeof req.body?.password === 'string'
+      ? req.body.password
+      : '';
+
+  const configuredEmail = normalizedEmail(process.env.ADMIN_EMAIL);
+  const passwordHash = process.env.ADMIN_PASSWORD_HASH || '';
+
+  const validHash =
+    /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(passwordHash);
+
+  if (
+    !configuredEmail ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configuredEmail) ||
+    !validHash
+  ) {
+    return res.status(503).json({
+      message: 'Administrator login is not configured.',
+    });
+  }
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: 'Email and password are required.',
+    });
+  }
+
+  try {
+    const passwordMatches = await bcrypt.compare(password, passwordHash);
+
+    if (email !== configuredEmail || !passwordMatches) {
+      return res.status(401).json({
+        message: 'Invalid email or password.',
+      });
+    }
+
+    return res.json({
+      token: signJwt(`admin:${configuredEmail}`, 'ADMIN'),
+      expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    });
+  } catch (error) {
     return next(error);
   }
 });
