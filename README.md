@@ -164,3 +164,24 @@ flowchart LR
 ```
 
 ---
+
+## Student Registration Setup
+
+The initial implementation uses React, Vite, Express, and MySQL. `INSTITUTION_EMAIL_DOMAINS` is validated by the backend. It sends a six-digit, ten-minute OTP through SMTP, and accounts are stored only after successful verification.
+
+Prerequisites: Node.js 20 or later, npm, MySQL 8 or later, and SMTP access.
+
+Environment settings:
+- `PORT`: optional; API port, default `4000`.
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`: required for all registration and OTP persistence.
+- `INSTITUTION_EMAIL_DOMAINS`: required for institutional-email validation; exact domains only, without `@`, comma-separated.
+- `OTP_HMAC_SECRET`: required; at least 32 characters, used to HMAC OTP digests. Generate locally and keep private.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: required for real OTP email delivery.
+
+Setup:
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env` and replace every placeholder locally.
+3. Apply the existing schema with `mysql -u root -p -e "source database/schema.sql"` from the repository root.
+4. Start the app with `npm run dev`. The Vite client is available at `http://localhost:5173` and proxies API requests to Express on port 4000.
+
+For a production build, run `npm run build` followed by `npm start`. Express serves the built client and API on port 4000. Keep `.env` private and configure HTTPS at the deployment boundary.
