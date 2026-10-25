@@ -34,10 +34,12 @@ CREATE TABLE IF NOT EXISTS student_profiles (
   cgpa DECIMAL(4,2) NULL,
   skills TEXT NULL,
   projects TEXT NULL,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_student_profiles_student
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-  CONSTRAINT chk_student_profiles_cgpa CHECK (cgpa IS NULL OR (cgpa >= 0 AND cgpa <= 10))
+  CONSTRAINT chk_student_profiles_cgpa
+    CHECK (cgpa IS NULL OR (cgpa >= 0 AND cgpa <= 10))
 );
 
 CREATE TABLE IF NOT EXISTS student_resumes (
@@ -46,7 +48,8 @@ CREATE TABLE IF NOT EXISTS student_resumes (
   mime_type VARCHAR(127) NOT NULL,
   file_size INT UNSIGNED NOT NULL,
   file_data LONGBLOB NOT NULL,
-  uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_student_resumes_student
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );

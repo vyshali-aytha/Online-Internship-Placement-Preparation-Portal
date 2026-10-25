@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from './db.js';
-import { requireAuth, signJwt } from './security.js';
+import { requireAuth, requireRoles, signJwt } from './security.js';
 
 const router = Router();
 const otpLifetimeMinutes = 10;
@@ -22,6 +22,12 @@ const requestLimiter = rateLimit({
 const verifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 15,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
 });
@@ -297,7 +303,110 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-router.get('/me', requireAuth, async (req, res, next) => {
+router.post('/recruiter/login', async (req, res, next) => {
+  const email = normalizedEmail(req.body?.email);
+  const password =
+    typeof req.body?.password === 'string'
+      ? req.body.password
+      : '';
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: 'Email and password are required.',
+    });
+  }
+
+  try {
+    const [rows] = await pool.execute(
+      `SELECT id, password_hash, status
+       FROM recruiter_requests
+       WHERE email = ?
+       LIMIT 1`,
+      [email],
+    );
+
+    const recruiter = rows[0];
+
+    if (
+      !recruiter ||
+      typeof recruiter.password_hash !== 'string' ||
+      !(await bcrypt.compare(password, recruiter.password_hash))
+    ) {
+      return res.status(401).json({
+        message: 'Invalid email or password.',
+      });
+    }
+
+    if (
+      typeof recruiter.status !== 'string' ||
+      recruiter.status.toUpperCase() !== 'APPROVED'
+    ) {
+      return res.status(403).json({
+        message: 'Recruiter account is not approved.',
+      });
+    }
+
+    return res.json({
+      token: signJwt(String(recruiter.id), 'RECRUITER'),
+      expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    });
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(503).json({
+        message: 'Recruiter account storage has not been initialized.',
+      });
+    }
+
+    return next(error);
+  }
+});
+router.post('/admin/login', adminLoginLimiter, async (req, res, next) => {
+  const email = normalizedEmail(req.body?.email);
+  const password =
+    typeof req.body?.password === 'string'
+      ? req.body.password
+      : '';
+
+  const configuredEmail = normalizedEmail(process.env.ADMIN_EMAIL);
+  const passwordHash = process.env.ADMIN_PASSWORD_HASH || '';
+
+  const validHash =
+    /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(passwordHash);
+
+  if (
+    !configuredEmail ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configuredEmail) ||
+    !validHash
+  ) {
+    return res.status(503).json({
+      message: 'Administrator login is not configured.',
+    });
+  }
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: 'Email and password are required.',
+    });
+  }
+
+  try {
+    const passwordMatches = await bcrypt.compare(password, passwordHash);
+
+    if (email !== configuredEmail || !passwordMatches) {
+      return res.status(401).json({
+        message: 'Invalid email or password.',
+      });
+    }
+
+    return res.json({
+      token: signJwt(`admin:${configuredEmail}`, 'ADMIN'),
+      expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+router.get('/me', requireAuth, requireRoles('STUDENT'), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
       'SELECT id FROM students WHERE id = ? LIMIT 1',

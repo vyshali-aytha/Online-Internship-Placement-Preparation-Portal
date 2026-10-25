@@ -1,3 +1,4 @@
+
 import { useEffect, useState, type FormEvent } from 'react';
 import ProfilePage from './ProfilePage';
 
@@ -33,8 +34,11 @@ async function requestOtp(form: RegistrationForm) {
       password: form.password,
     }),
   });
+
   const result = await response.json() as ApiResponse;
-  if (!response.ok) throw new Error(result.message || 'Could not send your code. Please try again.');
+  if (!response.ok) {
+    throw new Error(result.message || 'Could not send your code. Please try again.');
+  }
   return result.message || 'Verification code sent.';
 }
 
@@ -46,10 +50,16 @@ function App() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
+  const [studentToken, setStudentToken] = useState(
+    () => sessionStorage.getItem('oipp_student_token') || '',
+  );
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
-    const timer = window.setTimeout(() => setResendSeconds((seconds) => seconds - 1), 1000);
+    const timer = window.setTimeout(
+      () => setResendSeconds((seconds) => seconds - 1),
+      1000,
+    );
     return () => window.clearTimeout(timer);
   }, [resendSeconds]);
 
@@ -62,16 +72,20 @@ function App() {
     event.preventDefault();
     setError('');
     setBusy(true);
+
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email, password: form.password }),
       });
+
       const result = await response.json() as ApiResponse & { token?: string };
       if (!response.ok) throw new Error(result.message || 'Login failed.');
       if (!result.token) throw new Error('Login failed.');
+
       sessionStorage.setItem('oipp_student_token', result.token);
+      setStudentToken(result.token);
       setNotice('Signed in successfully.');
       setStep('complete');
     } catch (loginError) {
@@ -84,6 +98,7 @@ function App() {
   async function handleRequestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+
     if (form.password !== form.confirmPassword) {
       setError('Those passwords do not match.');
       return;
@@ -105,18 +120,26 @@ function App() {
     event.preventDefault();
     setError('');
     setBusy(true);
+
     try {
       const response = await fetch('/api/auth/register/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email, otp }),
       });
+
       const result = await response.json() as ApiResponse;
-      if (!response.ok) throw new Error(result.message || 'That code could not be verified.');
-      setNotice(result.message || 'Your account is ready.');
+      if (!response.ok) {
+        throw new Error(result.message || 'That code could not be verified.');
+      }
+      setNotice(result.message || 'Your account is ready. Sign in to manage your profile.');
       setStep('complete');
     } catch (verificationError) {
-      setError(verificationError instanceof Error ? verificationError.message : 'That code could not be verified.');
+      setError(
+        verificationError instanceof Error
+          ? verificationError.message
+          : 'That code could not be verified.',
+      );
     } finally {
       setBusy(false);
     }
@@ -125,6 +148,7 @@ function App() {
   async function handleResend() {
     setError('');
     setBusy(true);
+
     try {
       setNotice(await requestOtp(form));
       setOtp('');
@@ -134,6 +158,15 @@ function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function signOut() {
+    sessionStorage.removeItem('oipp_student_token');
+    setStudentToken('');
+    setForm(initialForm);
+    setError('');
+    setNotice('');
+    setStep('login');
   }
 
   return (
@@ -271,20 +304,30 @@ function App() {
             {step === 'complete' && (
               <div className="complete-state">
                 <div className="complete-icon" aria-hidden="true">✓</div>
-                <p className="kicker">EMAIL VERIFIED</p>
-                <h2>You&apos;re on your way.</h2>
+                <p className="kicker">{studentToken ? 'STUDENT PROFILE' : 'EMAIL VERIFIED'}</p>
+                <h2>{studentToken ? 'Manage your profile.' : 'You’re on your way.'}</h2>
                 <p className="intro">{notice}</p>
-                {sessionStorage.getItem('oipp_student_token') && (
-                  <ProfilePage token={sessionStorage.getItem('oipp_student_token') || ''} />
+
+                {studentToken ? (
+                  <>
+                    <ProfilePage token={studentToken} />
+                    <button className="back-button" type="button" onClick={signOut}>Sign out</button>
+                  </>
+                ) : (
+                  <>
+                    <div className="account-summary">
+                      <span>STUDENT ACCOUNT</span>
+                      <strong>{form.fullName}</strong>
+                      <small>{form.email}</small>
+                    </div>
+                    <button className="primary-button" type="button" onClick={() => { setError(''); setStep('login'); }}>
+                      Sign in to manage your profile <span aria-hidden="true">↗</span>
+                    </button>
+                    <button className="back-button" type="button" onClick={() => { setForm(initialForm); setOtp(''); setNotice(''); setStep('details'); }}>
+                      Register another student
+                    </button>
+                  </>
                 )}
-                <div className="account-summary">
-                  <span>STUDENT ACCOUNT</span>
-                  <strong>{form.fullName}</strong>
-                  <small>{form.email}</small>
-                </div>
-                <button className="primary-button" type="button" onClick={() => { setForm(initialForm); setOtp(''); setStep('details'); }}>
-                  Register another student <span aria-hidden="true">↗</span>
-                </button>
               </div>
             )}
           </div>
