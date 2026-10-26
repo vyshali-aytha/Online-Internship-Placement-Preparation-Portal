@@ -22,6 +22,7 @@ const { createRecruiterRequestRouter } =
 const { createRecruiterApprovalStatusResolver } =
   await import('./recruiterApproval.js');
 const { default: studentRouter } = await import('./student.js');
+const { logError } = await import('./safeLog.js');
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -75,7 +76,7 @@ app.use((error, _req, res, _next) => {
     });
   }
 
-  console.error(error);
+    logError('Unhandled server error', error);
 
   return res.status(500).json({
     message: 'Something went wrong. Please try again.',
