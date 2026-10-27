@@ -332,7 +332,13 @@ function App() {
               </div>
             )}
           </div>
-          <footer className="form-footer"><span>© 2026 OIPP</span><span>Built for your next step.</span></footer>
+          <footer className="form-footer">
+            <div className="form-footer-row">
+              <span>© 2026 OIPP</span>
+              <span>Built for your next step.</span>
+            </div>
+            <a href="/admin/login">Admin Login</a>
+          </footer>
         </section>
       </section>
     </main>
