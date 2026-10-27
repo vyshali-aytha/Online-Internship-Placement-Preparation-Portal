@@ -269,6 +269,7 @@ function App() {
                     <span aria-hidden="true">↗</span>
                   </button>
                 </form>
+                <p className="form-footnote">Hiring for your company? <a href="/recruiter-request">Request a recruiter account</a></p>
               </>
             )}
 
