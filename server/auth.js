@@ -144,8 +144,16 @@ router.post('/register/request-otp', requestLimiter, async (req, res, next) => {
         text: `Your verification code is ${otp}. It expires in ${otpLifetimeMinutes} minutes. If you did not request this, ignore this email.`,
       });
     } catch (error) {
-      await pool.execute('DELETE FROM registration_otps WHERE institutional_email = ?', [email]);
-      return res.status(503).json({ message: 'We could not send the verification email. Please try again later.' });
+      console.error('OTP email delivery failed:', error.message);
+
+      await pool.execute(
+        'DELETE FROM registration_otps WHERE institutional_email = ?',
+        [email]
+      );
+
+      return res.status(503).json({
+        message: 'We could not send the verification email. Please try again later.'
+      });
     }
 
     return res.status(202).json({ message: 'Verification code sent to your institutional email.' });
