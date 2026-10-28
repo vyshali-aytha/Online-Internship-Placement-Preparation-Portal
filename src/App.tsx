@@ -1,6 +1,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import ProfilePage from './ProfilePage';
+import ApplicationPage from './ApplicationPage';
 
 type RegistrationForm = {
   fullName: string;
@@ -192,7 +193,7 @@ function App() {
             <h1>Make room<br />for what&apos;s next.</h1>
             <p>One place to prepare, connect, and move toward work that matters.</p>
             <div className="visual-bottom">
-              <span>Internships Â· Placements Â· Preparation</span>
+              <span>Internships · Placements · Preparation</span>
               <span className="visual-index">01 / 03</span>
             </div>
           </div>
@@ -218,11 +219,11 @@ function App() {
                   </label>
                   {error && <p className="feedback error" role="alert">{error}</p>}
                   <button className="primary-button" type="submit" disabled={busy}>
-                    {busy ? 'Signing inâ€¦' : 'Sign in'}
-                    <span aria-hidden="true">â†—</span>
+                    {busy ? 'Signing in…' : 'Sign in'}
+                    <span aria-hidden="true">↗</span>
                   </button>
                 </form>
-                <button type="button" className="back-button" onClick={() => { setError(''); setStep('details'); }}>â† Create student account</button>
+                <button type="button" className="back-button" onClick={() => { setError(''); setStep('details'); }}>← Create student account</button>
               </>
             )}
 
@@ -265,8 +266,8 @@ function App() {
                   {error && <p className="feedback error" role="alert">{error}</p>}
                   <button type="button" className="text-button form-sign-in" onClick={() => { setError(''); setStep('login'); }}>Already registered? Sign in</button>
                   <button className="primary-button" type="submit" disabled={busy}>
-                    {busy ? 'Sending codeâ€¦' : 'Create account'}
-                    <span aria-hidden="true">â†—</span>
+                    {busy ? 'Sending code…' : 'Create account'}
+                    <span aria-hidden="true">↗</span>
                   </button>
                 </form>
                 <p className="form-footnote">Hiring for your company? <a href="/recruiter-request">Request a recruiter account</a></p>
@@ -288,8 +289,8 @@ function App() {
                   </label>
                   {error && <p className="feedback error" role="alert">{error}</p>}
                   <button className="primary-button" type="submit" disabled={busy || otp.length !== 6}>
-                    {busy ? 'Verifyingâ€¦' : 'Verify and create account'}
-                    <span aria-hidden="true">â†—</span>
+                    {busy ? 'Verifying…' : 'Verify and create account'}
+                    <span aria-hidden="true">↗</span>
                   </button>
                 </form>
                 <div className="resend-row">
@@ -298,20 +299,21 @@ function App() {
                     {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Send a new code'}
                   </button>
                 </div>
-                <button type="button" className="back-button" onClick={() => { setError(''); setStep('details'); }}>â† Edit registration details</button>
+                <button type="button" className="back-button" onClick={() => { setError(''); setStep('details'); }}>← Edit registration details</button>
               </>
             )}
 
             {step === 'complete' && (
               <div className="complete-state">
-                <div className="complete-icon" aria-hidden="true">âœ“</div>
+                <div className="complete-icon" aria-hidden="true">✓</div>
                 <p className="kicker">{studentToken ? 'STUDENT PROFILE' : 'EMAIL VERIFIED'}</p>
-                <h2>{studentToken ? 'Manage your profile.' : 'Youâ€™re on your way.'}</h2>
+                <h2>{studentToken ? 'Manage your profile.' : 'You’re on your way.'}</h2>
                 <p className="intro">{notice}</p>
 
                 {studentToken ? (
                   <>
                     <ProfilePage token={studentToken} />
+                    <ApplicationPage token={studentToken} />
                     <button className="back-button" type="button" onClick={signOut}>Sign out</button>
                   </>
                 ) : (
@@ -322,7 +324,7 @@ function App() {
                       <small>{form.email}</small>
                     </div>
                     <button className="primary-button" type="button" onClick={() => { setError(''); setStep('login'); }}>
-                      Sign in to manage your profile <span aria-hidden="true">â†—</span>
+                      Sign in to manage your profile <span aria-hidden="true">↗</span>
                     </button>
                     <button className="back-button" type="button" onClick={() => { setForm(initialForm); setOtp(''); setNotice(''); setStep('details'); }}>
                       Register another student
@@ -334,7 +336,7 @@ function App() {
           </div>
           <footer className="form-footer">
             <div className="form-footer-row">
-              <span>Â© 2026 OIPP</span>
+              <span>© 2026 OIPP</span>
               <span>Built for your next step.</span>
             </div>
             <a href="/admin/login">Admin Login</a>
