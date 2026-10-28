@@ -22,6 +22,7 @@ const { createRecruiterRequestRouter } =
 const { createRecruiterApprovalStatusResolver } =
   await import('./recruiterApproval.js');
 const { default: studentRouter } = await import('./student.js');
+const { createMockInterviewRouter } = await import('./mock-interviews.js');
 const { logError } = await import('./safeLog.js');
 
 const app = express();
@@ -62,6 +63,7 @@ app.use('/api/auth', authRouter);
 app.use('/api', createRbacRouter(pool));
 app.use('/api', createRecruiterRequestRouter(pool));
 app.use('/api/student', studentRouter);
+app.use('/api', createMockInterviewRouter(pool));
 
 app.get('/api/health', (_req, res) => {
   return res.json({ status: 'ok' });
