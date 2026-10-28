@@ -71,7 +71,7 @@ test('tampered payload and signature are rejected', () => {
     const alteredPayload = encoder(JSON.stringify(decodedPayload));
     assert.throws(() => verifyJwt(`${header}.${alteredPayload}.${signature}`), /Invalid authentication token/);
 
-    const alteredSignature = `${signature.slice(0, -1)}${signature.endsWith('A') ? 'B' : 'A'}`;
+    const alteredSignature = `${signature.startsWith('A') ? 'B' : 'A'}${signature.slice(1)}`;
     assert.throws(() => verifyJwt(`${header}.${payload}.${alteredSignature}`), /Invalid authentication token/);
   });
 });
