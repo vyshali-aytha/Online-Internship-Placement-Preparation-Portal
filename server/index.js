@@ -71,6 +71,14 @@ app.get('/api/health', (_req, res) => {
 
 app.use(express.static(path.resolve(currentDirectory, '../dist')));
 
+app.get('*', (req, res, next) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) return next();
+  if (path.extname(req.path)) return next();
+  return res.sendFile(path.resolve(currentDirectory, '../dist/index.html'), (error) => {
+    if (error) return next(error);
+  });
+});
+
 app.use((error, _req, res, _next) => {
   if (error.code === 'ER_NO_SUCH_TABLE') {
     return res.status(503).json({
