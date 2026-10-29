@@ -103,4 +103,22 @@ router.post('/listings/:listingId/applications', requireAuth, requireRoles('STUD
   }
 });
 
+
+router.get('/applications', requireAuth, requireRoles('STUDENT'), async (req, res, next) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT a.id, a.listing_id, l.title, l.company_name, l.location,
+              a.status, a.applied_at, a.updated_at
+       FROM applications a
+       JOIN internship_listings l ON l.id = a.listing_id
+       WHERE a.student_id = ?
+       ORDER BY a.applied_at DESC`,
+      [req.auth.sub]
+    );
+    return res.json({ applications: rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 export default router;
