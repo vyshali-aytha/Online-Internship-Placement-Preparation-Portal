@@ -98,8 +98,18 @@ export function verifyJwt(token) {
   let payload;
 
   try {
-    header = JSON.parse(Buffer.from(headerPart, 'base64url').toString('utf8'));
-    payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
+    const decodedHeader = Buffer.from(headerPart, 'base64url');
+    const decodedPayload = Buffer.from(payloadPart, 'base64url');
+
+    if (
+      decodedHeader.toString('base64url') !== headerPart ||
+      decodedPayload.toString('base64url') !== payloadPart
+    ) {
+      throw new Error('Invalid authentication token.');
+    }
+
+    header = JSON.parse(decodedHeader.toString('utf8'));
+    payload = JSON.parse(decodedPayload.toString('utf8'));
   } catch {
     throw new Error('Invalid authentication token.');
   }
@@ -126,6 +136,7 @@ export function verifyJwt(token) {
   const actual = Buffer.from(signaturePart, 'base64url');
 
   if (
+    actual.toString('base64url') !== signaturePart ||
     actual.length !== expected.length ||
     !timingSafeEqual(actual, expected)
   ) {

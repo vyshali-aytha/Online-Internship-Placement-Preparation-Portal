@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS students (
   student_id VARCHAR(64) NOT NULL,
   course VARCHAR(120) NOT NULL,
   password_hash VARCHAR(100) NOT NULL,
+  failed_login_attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  locked_until DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_students_email (institutional_email),
   UNIQUE KEY uq_students_student_id (student_id)
@@ -19,6 +21,8 @@ CREATE TABLE IF NOT EXISTS registration_otps (
   student_id VARCHAR(64) NOT NULL,
   course VARCHAR(120) NOT NULL,
   password_hash VARCHAR(100) NOT NULL,
+  failed_login_attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  locked_until DATETIME NULL,
   otp_digest CHAR(64) NOT NULL,
   expires_at DATETIME NOT NULL,
   sent_at DATETIME NOT NULL,
