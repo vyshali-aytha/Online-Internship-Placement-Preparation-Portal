@@ -1,6 +1,8 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import ProfilePage from './ProfilePage';
+import ApplicationPage from './ApplicationPage';
+import ApplicationTrackingPage from './ApplicationTrackingPage';
 
 type RegistrationForm = {
   fullName: string;
@@ -312,6 +314,8 @@ function App() {
                 {studentToken ? (
                   <>
                     <ProfilePage token={studentToken} />
+                    <ApplicationPage token={studentToken} />
+                    <ApplicationTrackingPage token={studentToken} />
                     <button className="back-button" type="button" onClick={signOut}>Sign out</button>
                   </>
                 ) : (
