@@ -342,6 +342,7 @@ function App() {
               <span>Built for your next step.</span>
             </div>
             <a href="/admin/login">Admin Login</a>
+            <a href="/mock-interviews">Mock Interviews</a>
           </footer>
         </section>
       </section>

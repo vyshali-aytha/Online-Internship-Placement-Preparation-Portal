@@ -5,6 +5,7 @@ import nodemailer from 'nodemailer';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from './db.js';
 import { requireAuth, requireRoles, signJwt } from './security.js';
+import { logSecurityEvent } from './securityEvents.js';
 
 const router = Router();
 const otpLifetimeMinutes = 10;
@@ -258,18 +259,21 @@ router.post('/login', async (req, res, next) => {
     const student = rows[0];
 
     if (!student) {
+      logSecurityEvent('auth.student.login.failure', { actorType: 'student', outcome: 'invalid_credentials', statusCode: 401 });
       await connection.rollback();
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
     const lockedUntil = student.locked_until ? new Date(student.locked_until) : null;
     if (lockedUntil && lockedUntil.getTime() > Date.now()) {
+      logSecurityEvent('auth.student.login.locked', { actorType: 'student', actorId: student.id, outcome: 'account_locked', statusCode: 423 });
       await connection.rollback();
       return res.status(423).json({ message: 'Account temporarily locked. Try again later.' });
     }
 
     const passwordMatches = await bcrypt.compare(password, student.password_hash);
     if (!passwordMatches) {
+      logSecurityEvent('auth.student.login.failure', { actorType: 'student', actorId: student.id, outcome: 'invalid_credentials', statusCode: 401 });
       const failedAttempts = (student.failed_login_attempts || 0) + 1;
       await connection.execute(
         `UPDATE students
@@ -293,6 +297,7 @@ router.post('/login', async (req, res, next) => {
     );
     await connection.commit();
 
+    logSecurityEvent('auth.student.login.success', { actorType: 'student', actorId: student.id, outcome: 'success', statusCode: 200 });
     return res.json({
       token: signJwt(String(student.id), 'student'),
       expiresIn: process.env.JWT_EXPIRES_IN || '1h',
@@ -340,6 +345,7 @@ router.post('/recruiter/login', async (req, res, next) => {
       typeof recruiter.password_hash !== 'string' ||
       !(await bcrypt.compare(password, recruiter.password_hash))
     ) {
+      logSecurityEvent('auth.recruiter.login.failure', { actorType: 'recruiter', outcome: 'invalid_credentials', statusCode: 401 });
       return res.status(401).json({
         message: 'Invalid email or password.',
       });
@@ -349,11 +355,13 @@ router.post('/recruiter/login', async (req, res, next) => {
       typeof recruiter.status !== 'string' ||
       recruiter.status.toUpperCase() !== 'APPROVED'
     ) {
+      logSecurityEvent('auth.recruiter.login.denied', { actorType: 'recruiter', actorId: recruiter.id, outcome: 'not_approved', statusCode: 403 });
       return res.status(403).json({
         message: 'Recruiter account is not approved.',
       });
     }
 
+    logSecurityEvent('auth.recruiter.login.success', { actorType: 'recruiter', actorId: recruiter.id, outcome: 'success', statusCode: 200 });
     return res.json({
       token: signJwt(String(recruiter.id), 'RECRUITER'),
       expiresIn: process.env.JWT_EXPIRES_IN || '1h',
@@ -401,11 +409,13 @@ router.post('/admin/login', adminLoginLimiter, async (req, res, next) => {
     const passwordMatches = await bcrypt.compare(password, passwordHash);
 
     if (email !== configuredEmail || !passwordMatches) {
+      logSecurityEvent('auth.admin.login.failure', { actorType: 'admin', outcome: 'invalid_credentials', statusCode: 401 });
       return res.status(401).json({
         message: 'Invalid email or password.',
       });
     }
 
+    logSecurityEvent('auth.admin.login.success', { actorType: 'admin', outcome: 'success', statusCode: 200 });
     return res.json({
       token: signJwt(`admin:${configuredEmail}`, 'ADMIN'),
       expiresIn: process.env.JWT_EXPIRES_IN || '1h',
