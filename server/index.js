@@ -26,6 +26,7 @@ const { default: applicationsRouter } = await import('./applications.js');
 const { createMockInterviewRouter } = await import('./mock-interviews.js');
 const { createRecruiterListingsRouter } = await import('./recruiter-listings.js');
 const { createListingsRouter } = await import('./listings.js');
+const { createHealthRouter } = await import('./health.js');
 const { logError } = await import('./safeLog.js');
 
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/student', createListingsRouter(pool));
 app.use('/api/student', applicationsRouter);
 app.use('/api', createMockInterviewRouter(pool));
 app.use('/api', createRecruiterListingsRouter(pool));
+app.use('/api', createHealthRouter(pool));
 
 app.get('/api/health', (_req, res) => {
   return res.json({ status: 'ok' });
