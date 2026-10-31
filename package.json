@@ -11,7 +11,9 @@
     "start": "node server/index.js",
     "cert": "node scripts/generate-dev-cert.js",
     "smoke": "node scripts/smoke-check.js",
-    "uptime": "node scripts/uptime-monitor.js"
+    "uptime": "node scripts/uptime-monitor.js",
+    "benchmark": "node scripts/benchmark.js",
+    "bench:seed": "node scripts/seed-benchmark-data.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
