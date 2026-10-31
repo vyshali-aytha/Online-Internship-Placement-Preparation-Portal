@@ -9,7 +9,9 @@
     "test": "node --test",
     "build": "tsc -b && vite build",
     "start": "node server/index.js",
-    "cert": "node scripts/generate-dev-cert.js"
+    "cert": "node scripts/generate-dev-cert.js",
+    "smoke": "node scripts/smoke-check.js",
+    "uptime": "node scripts/uptime-monitor.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
