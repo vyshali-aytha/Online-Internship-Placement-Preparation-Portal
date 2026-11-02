@@ -8,6 +8,7 @@ import { requireAuth, requireRoles, signJwt } from './security.js';
 import { logSecurityEvent } from './securityEvents.js';
 
 const router = Router();
+
 const otpLifetimeMinutes = 10;
 const maximumAttempts = 5;
 const resendDelaySeconds = 60;
@@ -26,6 +27,7 @@ const verifyLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
 });
+
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
@@ -51,19 +53,25 @@ function isInstitutionalEmail(email) {
 
 function otpDigest(email, otp) {
   const secret = process.env.OTP_HMAC_SECRET;
+
   if (!secret || secret.length < 32) {
     throw new Error('OTP_HMAC_SECRET must contain at least 32 characters.');
   }
-  return createHmac('sha256', secret).update(`${email}:${otp}`).digest('hex');
+
+  return createHmac('sha256', secret)
+    .update(`${email}:${otp}`)
+    .digest('hex');
 }
 
 function createMailer() {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const password = process.env.SMTP_PASSWORD;
+
   if (!host || !user || !password) {
     throw new Error('Email delivery is not configured.');
   }
+
   return nodemailer.createTransport({
     host,
     port: Number(process.env.SMTP_PORT || 587),
@@ -87,17 +95,27 @@ function validRegistration(body) {
     && Buffer.byteLength(body.password, 'utf8') <= 72;
 }
 
+// Request registration OTP
 router.post('/register/request-otp', requestLimiter, async (req, res, next) => {
   try {
     const email = normalizedEmail(req.body.email);
-    if (!validRegistration(req.body) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ message: 'Enter valid registration details. Passwords must be at least 12 characters.' });
+
+    if (
+      !validRegistration(req.body) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+      return res.status(400).json({
+        message: 'Enter valid registration details. Passwords must be at least 12 characters.',
+      });
     }
+
     if (!isInstitutionalEmail(email)) {
       const domains = allowedInstitutionDomains();
+
       const domainHint = domains.length > 0
         ? ` Use an email ending in ${domains.map((domain) => `@${domain}`).join(' or ')}.`
         : ' Institutional domains are not configured.';
+
       return res.status(400).json({
         message: `This email domain is not allowed.${domainHint}`,
       });
@@ -107,174 +125,310 @@ router.post('/register/request-otp', requestLimiter, async (req, res, next) => {
       'SELECT id FROM students WHERE institutional_email = ? OR student_id = ? LIMIT 1',
       [email, req.body.studentId.trim()],
     );
+
     if (existingStudents.length > 0) {
-      return res.status(409).json({ message: 'An account already exists for these registration details.' });
+      return res.status(409).json({
+        message: 'An account already exists for these registration details.',
+      });
     }
 
     const [existingOtp] = await pool.execute(
       'SELECT sent_at FROM registration_otps WHERE institutional_email = ? LIMIT 1',
       [email],
     );
+
     if (existingOtp.length > 0) {
       const sentAt = new Date(existingOtp[0].sent_at).getTime();
+
       if (Date.now() - sentAt < resendDelaySeconds * 1000) {
-        return res.status(429).json({ message: 'Please wait a minute before requesting another code.' });
+        return res.status(429).json({
+          message: 'Please wait a minute before requesting another code.',
+        });
       }
     }
 
     const otp = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const passwordHash = await bcrypt.hash(req.body.password, 12);
+
     await pool.execute(
       `INSERT INTO registration_otps
         (institutional_email, full_name, student_id, course, password_hash, otp_digest, expires_at, sent_at, failed_attempts)
        VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE), UTC_TIMESTAMP(), 0)
        ON DUPLICATE KEY UPDATE
-        full_name = VALUES(full_name), student_id = VALUES(student_id), course = VALUES(course),
-        password_hash = VALUES(password_hash), otp_digest = VALUES(otp_digest),
-        expires_at = VALUES(expires_at), sent_at = VALUES(sent_at), failed_attempts = 0`,
-      [email, req.body.fullName.trim(), req.body.studentId.trim(), req.body.course.trim(), passwordHash,
-        otpDigest(email, otp), otpLifetimeMinutes],
+        full_name = VALUES(full_name),
+        student_id = VALUES(student_id),
+        course = VALUES(course),
+        password_hash = VALUES(password_hash),
+        otp_digest = VALUES(otp_digest),
+        expires_at = VALUES(expires_at),
+        sent_at = VALUES(sent_at),
+        failed_attempts = 0`,
+      [
+        email,
+        req.body.fullName.trim(),
+        req.body.studentId.trim(),
+        req.body.course.trim(),
+        passwordHash,
+        otpDigest(email, otp),
+        otpLifetimeMinutes,
+      ],
     );
 
+    // Development-only OTP delivery
     try {
-      const mailer = createMailer();
-      await mailer.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: email,
-        subject: 'Your OIPP registration code',
-        text: `Your verification code is ${otp}. It expires in ${otpLifetimeMinutes} minutes. If you did not request this, ignore this email.`,
-      });
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        process.env.OTP_DELIVERY_MODE === 'console'
+      ) {
+        console.log(
+          `[DEV ONLY] OIPP registration OTP for ${email}: ${otp}`,
+        );
+      } else {
+        const mailer = createMailer();
+
+        await mailer.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: email,
+          subject: 'Your OIPP registration code',
+          text: `Your verification code is ${otp}. It expires in ${otpLifetimeMinutes} minutes. If you did not request this, ignore this email.`,
+        });
+      }
     } catch (error) {
       console.error('OTP email delivery failed:', error.message);
 
       await pool.execute(
         'DELETE FROM registration_otps WHERE institutional_email = ?',
-        [email]
+        [email],
       );
 
       return res.status(503).json({
-        message: 'We could not send the verification email. Please try again later.'
+        message: 'We could not send the verification email. Please try again later.',
       });
     }
 
-    return res.status(202).json({ message: 'Verification code sent to your institutional email.' });
+    return res.status(202).json({
+      message: 'Verification code sent to your institutional email.',
+    });
   } catch (error) {
     return next(error);
   }
 });
 
+// Verify registration OTP
 router.post('/register/verify-otp', verifyLimiter, async (req, res, next) => {
   const email = normalizedEmail(req.body.email);
-  const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(otp)) {
-    return res.status(400).json({ message: 'Enter the six-digit code sent to your email.' });
+  const otp = typeof req.body.otp === 'string'
+    ? req.body.otp.trim()
+    : '';
+
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    !/^\d{6}$/.test(otp)
+  ) {
+    return res.status(400).json({
+      message: 'Enter the six-digit code sent to your email.',
+    });
   }
 
   let connection;
+
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
+
     const [rows] = await connection.execute(
       'SELECT * FROM registration_otps WHERE institutional_email = ? FOR UPDATE',
       [email],
     );
+
     const challenge = rows[0];
+
     if (!challenge) {
       await connection.rollback();
-      return res.status(400).json({ message: 'This code is invalid or expired. Request a new code.' });
+
+      return res.status(400).json({
+        message: 'This code is invalid or expired. Request a new code.',
+      });
     }
 
     if (new Date(challenge.expires_at).getTime() <= Date.now()) {
-      await connection.execute('DELETE FROM registration_otps WHERE institutional_email = ?', [email]);
+      await connection.execute(
+        'DELETE FROM registration_otps WHERE institutional_email = ?',
+        [email],
+      );
+
       await connection.commit();
-      return res.status(400).json({ message: 'This code has expired. Request a new code.' });
+
+      return res.status(400).json({
+        message: 'This code has expired. Request a new code.',
+      });
     }
 
     if (challenge.failed_attempts >= maximumAttempts) {
-      await connection.execute('DELETE FROM registration_otps WHERE institutional_email = ?', [email]);
+      await connection.execute(
+        'DELETE FROM registration_otps WHERE institutional_email = ?',
+        [email],
+      );
+
       await connection.commit();
-      return res.status(429).json({ message: 'Too many incorrect attempts. Request a new code.' });
+
+      return res.status(429).json({
+        message: 'Too many incorrect attempts. Request a new code.',
+      });
     }
 
     const submittedDigest = Buffer.from(otpDigest(email, otp), 'hex');
     const savedDigest = Buffer.from(challenge.otp_digest, 'hex');
+
     const matches = submittedDigest.length === savedDigest.length
       && timingSafeEqual(submittedDigest, savedDigest);
+
     if (!matches) {
       const nextAttempts = challenge.failed_attempts + 1;
+
       if (nextAttempts >= maximumAttempts) {
-        await connection.execute('DELETE FROM registration_otps WHERE institutional_email = ?', [email]);
+        await connection.execute(
+          'DELETE FROM registration_otps WHERE institutional_email = ?',
+          [email],
+        );
       } else {
         await connection.execute(
           'UPDATE registration_otps SET failed_attempts = ? WHERE institutional_email = ?',
           [nextAttempts, email],
         );
       }
+
       await connection.commit();
-      return res.status(400).json({ message: 'That code is incorrect. Check it and try again.' });
+
+      return res.status(400).json({
+        message: 'That code is incorrect. Check it and try again.',
+      });
     }
 
     await connection.execute(
-      `INSERT INTO students (full_name, institutional_email, student_id, course, password_hash)
+      `INSERT INTO students
+        (full_name, institutional_email, student_id, course, password_hash)
        VALUES (?, ?, ?, ?, ?)`,
-      [challenge.full_name, email, challenge.student_id, challenge.course, challenge.password_hash],
+      [
+        challenge.full_name,
+        email,
+        challenge.student_id,
+        challenge.course,
+        challenge.password_hash,
+      ],
     );
-    await connection.execute('DELETE FROM registration_otps WHERE institutional_email = ?', [email]);
+
+    await connection.execute(
+      'DELETE FROM registration_otps WHERE institutional_email = ?',
+      [email],
+    );
+
     await connection.commit();
-    return res.status(201).json({ message: 'Your student account is verified and ready.' });
+
+    return res.status(201).json({
+      message: 'Your student account is verified and ready.',
+    });
   } catch (error) {
     if (connection) {
       try {
         await connection.rollback();
       } catch (rollbackError) {
-        console.error('Failed to roll back OTP verification transaction:', rollbackError);
+        console.error(
+          'Failed to roll back OTP verification transaction:',
+          rollbackError,
+        );
       }
     }
+
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'An account already exists for these registration details.' });
+      return res.status(409).json({
+        message: 'An account already exists for these registration details.',
+      });
     }
+
     return next(error);
   } finally {
     connection?.release();
   }
 });
 
+// Student login
 router.post('/login', async (req, res, next) => {
   const email = normalizedEmail(req.body.email);
-  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const password = typeof req.body.password === 'string'
+    ? req.body.password
+    : '';
 
   if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required.' });
+    return res.status(400).json({
+      message: 'Email and password are required.',
+    });
   }
 
   let connection;
+
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
+
     const [rows] = await connection.execute(
       `SELECT id, password_hash, failed_login_attempts, locked_until
-       FROM students WHERE institutional_email = ? LIMIT 1 FOR UPDATE`,
+       FROM students
+       WHERE institutional_email = ?
+       LIMIT 1 FOR UPDATE`,
       [email],
     );
+
     const student = rows[0];
 
     if (!student) {
-      logSecurityEvent('auth.student.login.failure', { actorType: 'student', outcome: 'invalid_credentials', statusCode: 401 });
+      logSecurityEvent('auth.student.login.failure', {
+        actorType: 'student',
+        outcome: 'invalid_credentials',
+        statusCode: 401,
+      });
+
       await connection.rollback();
-      return res.status(401).json({ message: 'Invalid email or password.' });
+
+      return res.status(401).json({
+        message: 'Invalid email or password.',
+      });
     }
 
-    const lockedUntil = student.locked_until ? new Date(student.locked_until) : null;
+    const lockedUntil = student.locked_until
+      ? new Date(student.locked_until)
+      : null;
+
     if (lockedUntil && lockedUntil.getTime() > Date.now()) {
-      logSecurityEvent('auth.student.login.locked', { actorType: 'student', actorId: student.id, outcome: 'account_locked', statusCode: 423 });
+      logSecurityEvent('auth.student.login.locked', {
+        actorType: 'student',
+        actorId: student.id,
+        outcome: 'account_locked',
+        statusCode: 423,
+      });
+
       await connection.rollback();
-      return res.status(423).json({ message: 'Account temporarily locked. Try again later.' });
+
+      return res.status(423).json({
+        message: 'Account temporarily locked. Try again later.',
+      });
     }
 
-    const passwordMatches = await bcrypt.compare(password, student.password_hash);
+    const passwordMatches = await bcrypt.compare(
+      password,
+      student.password_hash,
+    );
+
     if (!passwordMatches) {
-      logSecurityEvent('auth.student.login.failure', { actorType: 'student', actorId: student.id, outcome: 'invalid_credentials', statusCode: 401 });
+      logSecurityEvent('auth.student.login.failure', {
+        actorType: 'student',
+        actorId: student.id,
+        outcome: 'invalid_credentials',
+        statusCode: 401,
+      });
+
       const failedAttempts = (student.failed_login_attempts || 0) + 1;
+
       await connection.execute(
         `UPDATE students
          SET failed_login_attempts = ?, locked_until = ?
@@ -282,22 +436,35 @@ router.post('/login', async (req, res, next) => {
         [
           failedAttempts,
           failedAttempts >= loginMaximumAttempts
-            ? new Date(Date.now() + lockoutDurationMinutes() * 60 * 1000)
+            ? new Date(
+                Date.now() + lockoutDurationMinutes() * 60 * 1000,
+              )
             : null,
           student.id,
         ],
       );
+
       await connection.commit();
-      return res.status(401).json({ message: 'Invalid email or password.' });
+
+      return res.status(401).json({
+        message: 'Invalid email or password.',
+      });
     }
 
     await connection.execute(
       'UPDATE students SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
       [student.id],
     );
+
     await connection.commit();
 
-    logSecurityEvent('auth.student.login.success', { actorType: 'student', actorId: student.id, outcome: 'success', statusCode: 200 });
+    logSecurityEvent('auth.student.login.success', {
+      actorType: 'student',
+      actorId: student.id,
+      outcome: 'success',
+      statusCode: 200,
+    });
+
     return res.json({
       token: signJwt(String(student.id), 'student'),
       expiresIn: process.env.JWT_EXPIRES_IN || '1h',
@@ -307,21 +474,26 @@ router.post('/login', async (req, res, next) => {
       try {
         await connection.rollback();
       } catch (rollbackError) {
-        console.error('Failed to roll back login transaction:', rollbackError);
+        console.error(
+          'Failed to roll back login transaction:',
+          rollbackError,
+        );
       }
     }
+
     return next(error);
   } finally {
     connection?.release();
   }
 });
 
+// Recruiter login
 router.post('/recruiter/login', async (req, res, next) => {
   const email = normalizedEmail(req.body?.email);
-  const password =
-    typeof req.body?.password === 'string'
-      ? req.body.password
-      : '';
+
+  const password = typeof req.body?.password === 'string'
+    ? req.body.password
+    : '';
 
   if (!email || !password) {
     return res.status(400).json({
@@ -345,7 +517,12 @@ router.post('/recruiter/login', async (req, res, next) => {
       typeof recruiter.password_hash !== 'string' ||
       !(await bcrypt.compare(password, recruiter.password_hash))
     ) {
-      logSecurityEvent('auth.recruiter.login.failure', { actorType: 'recruiter', outcome: 'invalid_credentials', statusCode: 401 });
+      logSecurityEvent('auth.recruiter.login.failure', {
+        actorType: 'recruiter',
+        outcome: 'invalid_credentials',
+        statusCode: 401,
+      });
+
       return res.status(401).json({
         message: 'Invalid email or password.',
       });
@@ -355,13 +532,25 @@ router.post('/recruiter/login', async (req, res, next) => {
       typeof recruiter.status !== 'string' ||
       recruiter.status.toUpperCase() !== 'APPROVED'
     ) {
-      logSecurityEvent('auth.recruiter.login.denied', { actorType: 'recruiter', actorId: recruiter.id, outcome: 'not_approved', statusCode: 403 });
+      logSecurityEvent('auth.recruiter.login.denied', {
+        actorType: 'recruiter',
+        actorId: recruiter.id,
+        outcome: 'not_approved',
+        statusCode: 403,
+      });
+
       return res.status(403).json({
         message: 'Recruiter account is not approved.',
       });
     }
 
-    logSecurityEvent('auth.recruiter.login.success', { actorType: 'recruiter', actorId: recruiter.id, outcome: 'success', statusCode: 200 });
+    logSecurityEvent('auth.recruiter.login.success', {
+      actorType: 'recruiter',
+      actorId: recruiter.id,
+      outcome: 'success',
+      statusCode: 200,
+    });
+
     return res.json({
       token: signJwt(String(recruiter.id), 'RECRUITER'),
       expiresIn: process.env.JWT_EXPIRES_IN || '1h',
@@ -376,12 +565,14 @@ router.post('/recruiter/login', async (req, res, next) => {
     return next(error);
   }
 });
+
+// Admin login
 router.post('/admin/login', adminLoginLimiter, async (req, res, next) => {
   const email = normalizedEmail(req.body?.email);
-  const password =
-    typeof req.body?.password === 'string'
-      ? req.body.password
-      : '';
+
+  const password = typeof req.body?.password === 'string'
+    ? req.body.password
+    : '';
 
   const configuredEmail = normalizedEmail(process.env.ADMIN_EMAIL);
   const passwordHash = process.env.ADMIN_PASSWORD_HASH || '';
@@ -406,16 +597,29 @@ router.post('/admin/login', adminLoginLimiter, async (req, res, next) => {
   }
 
   try {
-    const passwordMatches = await bcrypt.compare(password, passwordHash);
+    const passwordMatches = await bcrypt.compare(
+      password,
+      passwordHash,
+    );
 
     if (email !== configuredEmail || !passwordMatches) {
-      logSecurityEvent('auth.admin.login.failure', { actorType: 'admin', outcome: 'invalid_credentials', statusCode: 401 });
+      logSecurityEvent('auth.admin.login.failure', {
+        actorType: 'admin',
+        outcome: 'invalid_credentials',
+        statusCode: 401,
+      });
+
       return res.status(401).json({
         message: 'Invalid email or password.',
       });
     }
 
-    logSecurityEvent('auth.admin.login.success', { actorType: 'admin', outcome: 'success', statusCode: 200 });
+    logSecurityEvent('auth.admin.login.success', {
+      actorType: 'admin',
+      outcome: 'success',
+      statusCode: 200,
+    });
+
     return res.json({
       token: signJwt(`admin:${configuredEmail}`, 'ADMIN'),
       expiresIn: process.env.JWT_EXPIRES_IN || '1h',
@@ -424,17 +628,25 @@ router.post('/admin/login', adminLoginLimiter, async (req, res, next) => {
     return next(error);
   }
 });
+
+// Get current student
 router.get('/me', requireAuth, requireRoles('STUDENT'), async (req, res, next) => {
   try {
     const [rows] = await pool.execute(
       'SELECT id FROM students WHERE id = ? LIMIT 1',
       [req.auth.sub],
     );
+
     if (!rows[0]) {
-      return res.status(401).json({ message: 'Authentication required.' });
+      return res.status(401).json({
+        message: 'Authentication required.',
+      });
     }
 
-    return res.json({ id: rows[0].id, role: req.auth.role });
+    return res.json({
+      id: rows[0].id,
+      role: req.auth.role,
+    });
   } catch (error) {
     return next(error);
   }
@@ -442,7 +654,10 @@ router.get('/me', requireAuth, requireRoles('STUDENT'), async (req, res, next) =
 
 function lockoutDurationMinutes() {
   const configured = Number(process.env.LOGIN_LOCKOUT_MINUTES);
-  return Number.isInteger(configured) && configured > 0 ? configured : 15;
+
+  return Number.isInteger(configured) && configured > 0
+    ? configured
+    : 15;
 }
 
 export default router;
