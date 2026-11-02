@@ -507,3 +507,153 @@ a.back-button { display: inline-block; text-decoration: none; }
   .mock-form > button { grid-column: auto; }
   .mock-nav { gap: 10px; }
 }
+
+
+/* ---------- NF-005: Accessibility and Usability ---------- */
+
+/* Improve readability and text contrast */
+:root {
+  --muted: #59665f;
+}
+
+body {
+  line-height: 1.5;
+}
+
+p,
+li,
+label,
+input,
+textarea,
+select,
+button {
+  line-height: 1.5;
+}
+
+/* Consistent keyboard navigation */
+:focus-visible {
+  outline: 3px solid #b05a32 !important;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* Comfortable interaction targets */
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+button,
+.mock-button,
+.primary-button,
+.refresh-button,
+.decision-button {
+  min-height: 44px;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+/* Clear disabled states */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* Better form readability */
+.field {
+  font-size: 13px;
+}
+
+.field input,
+.field textarea,
+.mock-form input,
+.mock-admin-booking textarea {
+  font-size: 14px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: #68756d;
+  opacity: 1;
+}
+
+/* Make errors easier to identify */
+.error,
+.field-error,
+.banner-error,
+.mock-error,
+.admin-feedback-error {
+  font-weight: 600;
+}
+
+/* Prevent horizontal overflow */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+/* Responsive layouts */
+@media (max-width: 700px) {
+  .page-shell {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .mock-interview-content,
+  .admin-dashboard,
+  .admin-content {
+    width: 100%;
+  }
+
+  .mock-card {
+    padding: 16px;
+  }
+
+  .mock-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-title-row,
+  .admin-dashboard-heading {
+    flex-wrap: wrap;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .request-actions,
+  .admin-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
