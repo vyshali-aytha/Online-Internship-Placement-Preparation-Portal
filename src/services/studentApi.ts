@@ -15,8 +15,24 @@ export type StudentProfile = {
 export type EditableProfile = Pick<StudentProfile, 'phone' | 'location' | 'headline' | 'bio' | 'cgpa' | 'skills' | 'projects'>;
 
 async function readResponse(response: Response) {
-  const result = await response.json() as { message?: string };
-  if (!response.ok) throw new Error(result.message || 'Request failed.');
+  const text = await response.text();
+
+  let result: { message?: string } = {};
+
+  if (text) {
+    try {
+      result = JSON.parse(text) as { message?: string };
+    } catch {
+      throw new Error(
+        `Server returned an invalid response (HTTP ${response.status}).`
+      );
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(result.message || `Request failed (HTTP ${response.status}).`);
+  }
+
   return result;
 }
 
@@ -56,5 +72,18 @@ export async function downloadStudentResume(token: string) {
     const result = await response.json() as { message?: string };
     throw new Error(result.message || 'Could not download resume.');
   }
+  return response.blob();
+}
+
+export async function generateStudentResumePdf(token: string) {
+  const response = await fetch('/api/student/resume/generated', {
+    headers: authHeaders(token),
+  });
+
+  if (!response.ok) {
+    const result = await response.json() as { message?: string };
+    throw new Error(result.message || 'Could not generate PDF resume.');
+  }
+
   return response.blob();
 }

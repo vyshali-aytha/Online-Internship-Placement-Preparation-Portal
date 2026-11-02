@@ -24,6 +24,7 @@ const { createRecruiterApprovalStatusResolver } =
 const { default: studentRouter } = await import('./student.js');
 const { default: applicationsRouter } = await import('./applications.js');
 const { createMockInterviewRouter } = await import('./mock-interviews.js');
+const { createMockTestRouter } = await import('./mock-tests.js');
 const { createRecruiterListingsRouter } = await import('./recruiter-listings.js');
 const { createListingsRouter } = await import('./listings.js');
 const { createHealthRouter } = await import('./health.js');
@@ -71,6 +72,7 @@ app.use('/api/student', studentRouter);
 app.use('/api/student', createListingsRouter(pool));
 app.use('/api/student', applicationsRouter);
 app.use('/api', createMockInterviewRouter(pool));
+app.use('/api', createMockTestRouter(pool));
 app.use('/api', createRecruiterListingsRouter(pool));
 app.use('/api', createHealthRouter(pool));
 app.use('/api', createRecruiterApplicantsRouter(pool));
