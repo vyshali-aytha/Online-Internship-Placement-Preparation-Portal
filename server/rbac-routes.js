@@ -5,8 +5,116 @@ import {
   requireApprovedRecruiter,
 } from './security.js';
 
+function dateOnlyString(value) {
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const date = new Date(`${trimmed}T00:00:00Z`);
+
+  return Number.isNaN(date.getTime()) ? null : trimmed;
+}
+
+function normalizeBranchFilter(value) {
+  if (typeof value !== 'string') return null;
+
+  const normalized = value.trim();
+
+  if (!normalized || /^(all|all branches)$/i.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
 export function createRbacRouter(dbPool) {
   const router = Router();
+
+  router.get(
+    '/admin/placement-summary',
+    requireAuth,
+    requireRoles('ADMIN'),
+    async (req, res, next) => {
+      const startDate = dateOnlyString(req.query?.startDate);
+      const endDate = dateOnlyString(req.query?.endDate);
+      const branchFilter = normalizeBranchFilter(req.query?.branch);
+
+      if (
+        (req.query?.startDate !== undefined && !startDate) ||
+        (req.query?.endDate !== undefined && !endDate)
+      ) {
+        return res.status(400).json({
+          message: 'Start date and end date must be valid YYYY-MM-DD values.',
+        });
+      }
+
+      if (startDate && endDate && startDate > endDate) {
+        return res.status(400).json({
+          message: 'The start date must be before or equal to the end date.',
+        });
+      }
+
+      try {
+        const values = [];
+        let whereClause = 'WHERE 1 = 1';
+
+        if (branchFilter) {
+          whereClause += ' AND LOWER(TRIM(s.course)) = ?';
+          values.push(branchFilter.toLowerCase());
+        }
+
+        if (startDate) {
+          whereClause += ' AND DATE(a.applied_at) >= ?';
+          values.push(startDate);
+        }
+
+        if (endDate) {
+          whereClause += ' AND DATE(a.applied_at) <= ?';
+          values.push(endDate);
+        }
+
+        const [summaryRows] = await dbPool.execute(
+          `SELECT COUNT(*) AS total_applications,
+                  SUM(CASE WHEN a.status = 'Selected' THEN 1 ELSE 0 END) AS total_offers
+           FROM applications a
+           INNER JOIN students s ON s.id = a.student_id
+           ${whereClause}`,
+          values,
+        );
+
+        const [branchRows] = await dbPool.execute(
+          `SELECT DISTINCT TRIM(course) AS branch
+           FROM students
+           WHERE course IS NOT NULL
+             AND TRIM(course) <> ''
+           ORDER BY TRIM(course) ASC`
+        );
+
+        const totalApplications = Number(summaryRows[0]?.total_applications || 0);
+        const totalOffers = Number(summaryRows[0]?.total_offers || 0);
+        const selectionRate = totalApplications === 0
+          ? 0
+          : Number(((totalOffers / totalApplications) * 100).toFixed(2));
+
+        return res.status(200).json({
+          totalApplications,
+          totalOffers,
+          selectionRate,
+          branch: branchFilter || 'All Branches',
+          startDate: startDate || null,
+          endDate: endDate || null,
+          branches: branchRows.map((row) => row.branch).filter(Boolean),
+          note: 'Selected is used as the offer-count proxy because the system does not maintain a separate offers table.',
+        });
+      } catch (error) {
+        return next(error);
+      }
+    }
+  );
 
   // Recruiter access is permitted only while the database status
   // is APPROVED. The status is checked on every request.
