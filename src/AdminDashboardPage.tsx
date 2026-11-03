@@ -3,6 +3,8 @@ import {
   AdminApiError,
   decideRecruiterRequest,
   getPendingRecruiterRequests,
+  getPlacementSummaryReport,
+  type PlacementSummaryReport,
   type RecruiterDecision,
   type RecruiterRequest,
 } from './services/adminApi';
@@ -38,6 +40,12 @@ export default function AdminDashboardPage() {
     id: number;
     decision: RecruiterDecision;
   } | null>(null);
+  const [report, setReport] = useState<PlacementSummaryReport | null>(null);
+  const [reportBranch, setReportBranch] = useState('All Branches');
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   const loadRequests = useCallback(async () => {
     if (!token) {
@@ -59,9 +67,50 @@ export default function AdminDashboardPage() {
     }
   }, [token]);
 
+  const loadPlacementSummary = useCallback(async (
+    nextBranch = reportBranch,
+    nextStartDate = reportStartDate,
+    nextEndDate = reportEndDate,
+  ) => {
+    if (!token) {
+      setReport(null);
+      setReportError('');
+      return;
+    }
+
+    setReportLoading(true);
+    setReportError('');
+
+    try {
+      const summary = await getPlacementSummaryReport(
+        token,
+        nextBranch,
+        nextStartDate,
+        nextEndDate,
+      );
+      setReport(summary);
+    } catch (error) {
+      const message = error instanceof AdminApiError
+        ? error.message
+        : 'The placement summary could not be loaded.';
+      setReportError(message);
+      if (error instanceof AdminApiError && (error.status === 401 || error.status === 403)) {
+        sessionStorage.removeItem('oipp_admin_token');
+      }
+    } finally {
+      setReportLoading(false);
+    }
+  }, [reportBranch, reportEndDate, reportStartDate, token]);
+
   useEffect(() => {
     void loadRequests();
   }, [loadRequests]);
+
+  useEffect(() => {
+    if (token) {
+      void loadPlacementSummary();
+    }
+  }, [loadPlacementSummary, token]);
 
   async function handleDecision(request: RecruiterRequest, decision: RecruiterDecision) {
     if (request.status !== 'PENDING' || processingAction !== null) return;
@@ -133,6 +182,116 @@ export default function AdminDashboardPage() {
 
         {feedback && <p className="admin-feedback admin-feedback-success" role="status">{feedback}</p>}
         {actionError && <p className="admin-feedback admin-feedback-error" role="alert">{actionError}</p>}
+
+        <section className="admin-report-panel" aria-labelledby="placement-summary-title">
+          <div className="admin-panel-heading">
+            <div>
+              <h2 id="placement-summary-title">Placement summary report</h2>
+              <p>Review applications, offers and selection rate across branch and date filters.</p>
+            </div>
+          </div>
+
+          <div className="admin-report-filters">
+            <label className="field compact-field">
+              <span>Branch</span>
+              <select
+                value={reportBranch}
+                onChange={(event) => setReportBranch(event.target.value)}
+              >
+                <option value="All Branches">All Branches</option>
+                {(report?.branches ?? []).map((branch) => (
+                  <option key={branch} value={branch}>{branch}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field compact-field">
+              <span>Start date</span>
+              <input
+                type="date"
+                value={reportStartDate}
+                onChange={(event) => setReportStartDate(event.target.value)}
+              />
+            </label>
+
+            <label className="field compact-field">
+              <span>End date</span>
+              <input
+                type="date"
+                value={reportEndDate}
+                onChange={(event) => setReportEndDate(event.target.value)}
+              />
+            </label>
+
+            <div className="report-filter-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void loadPlacementSummary(reportBranch, reportStartDate, reportEndDate)}
+                disabled={reportLoading}
+              >
+                {reportLoading ? 'Loading…' : 'Apply filters'}
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  const nextBranch = 'All Branches';
+                  const nextStartDate = '';
+                  const nextEndDate = '';
+                  setReportBranch(nextBranch);
+                  setReportStartDate(nextStartDate);
+                  setReportEndDate(nextEndDate);
+                  void loadPlacementSummary(nextBranch, nextStartDate, nextEndDate);
+                }}
+                disabled={reportLoading}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          {reportError ? (
+            <div className="admin-state admin-state-error" role="alert">
+              <strong>Couldn&apos;t load the report</strong>
+              <span>{reportError}</span>
+            </div>
+          ) : report ? (
+            <>
+              <div className="report-legend">
+                <strong>{report.branch}</strong>
+                <span>
+                  {report.startDate ? `From ${report.startDate}` : 'All dates'}
+                  {' · '}
+                  {report.endDate ? `To ${report.endDate}` : 'Through latest application'}
+                </span>
+              </div>
+
+              <div className="report-metrics">
+                <article className="report-metric-card">
+                  <span>Total applications</span>
+                  <strong>{report.totalApplications}</strong>
+                </article>
+                <article className="report-metric-card">
+                  <span>Total offers</span>
+                  <strong>{report.totalOffers}</strong>
+                </article>
+                <article className="report-metric-card highlight">
+                  <span>Selection rate</span>
+                  <strong>{report.selectionRate.toFixed(2)}%</strong>
+                </article>
+              </div>
+
+              <p className="report-note">
+                <strong>Note:</strong> {report.note}
+              </p>
+            </>
+          ) : (
+            <div className="admin-state" role="status">
+              <span className="admin-spinner" /> Loading placement summary…
+            </div>
+          )}
+        </section>
 
         <section className="admin-request-panel" aria-label="Pending recruiter requests">
           <div className="admin-panel-heading">

@@ -9,6 +9,17 @@ export type RecruiterRequest = {
 
 export type RecruiterDecision = 'APPROVED' | 'REJECTED';
 
+export type PlacementSummaryReport = {
+  totalApplications: number;
+  totalOffers: number;
+  selectionRate: number;
+  branch: string;
+  startDate: string | null;
+  endDate: string | null;
+  branches: string[];
+  note: string;
+};
+
 export class AdminApiError extends Error {
   status: number;
 
@@ -106,5 +117,38 @@ export async function decideRecruiterRequest(
   if (result.id !== id || result.status !== status) {
     throw new AdminApiError('The server did not confirm the requested decision.', 0);
   }
+  return result;
+}
+
+export async function getPlacementSummaryReport(
+  token: string,
+  branch: string = 'All Branches',
+  startDate?: string,
+  endDate?: string,
+) {
+  const params = new URLSearchParams();
+
+  if (branch && branch !== 'All Branches' && branch !== 'all' && branch !== 'all branches') {
+    params.set('branch', branch);
+  }
+
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+
+  const query = params.toString();
+  const result = await request<PlacementSummaryReport>(
+    query ? `/api/admin/placement-summary?${query}` : '/api/admin/placement-summary',
+    token,
+  );
+
+  if (
+    typeof result.totalApplications !== 'number' ||
+    typeof result.totalOffers !== 'number' ||
+    typeof result.selectionRate !== 'number' ||
+    !Array.isArray(result.branches)
+  ) {
+    throw new AdminApiError('The server returned an invalid placement summary report.', 0);
+  }
+
   return result;
 }
