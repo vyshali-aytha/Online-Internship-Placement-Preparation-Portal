@@ -68,6 +68,7 @@ function App() {
   const [studentToken, setStudentToken] = useState(
     () => sessionStorage.getItem('oipp_student_token') || '',
   );
+  const isUnauthenticatedEntry = step === 'login' || step === 'details';
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -257,12 +258,46 @@ function App() {
         className="registration-layout"
         aria-label="Student registration"
       >
-        <aside className="visual-panel">
-          <img
-            className="campus-image"
-            src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1400&q=85"
-            alt="Students collaborating around a table on campus"
-          />
+        <aside className={`visual-panel${studentToken && !isUnauthenticatedEntry ? ' visual-panel-authenticated' : ''}`}>
+          {studentToken && !isUnauthenticatedEntry ? (
+            <svg className="career-art" viewBox="0 0 900 1200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <defs>
+                <linearGradient id="career-field" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#173b33" />
+                  <stop offset="0.52" stopColor="#102923" />
+                  <stop offset="1" stopColor="#202a28" />
+                </linearGradient>
+                <linearGradient id="career-light" x1="0" y1="0" x2="0.9" y2="1">
+                  <stop offset="0" stopColor="#c2d785" stopOpacity=".2" />
+                  <stop offset="1" stopColor="#c2d785" stopOpacity="0" />
+                </linearGradient>
+                <pattern id="career-grid" width="56" height="56" patternUnits="userSpaceOnUse">
+                  <path d="M56 0H0V56" fill="none" stroke="#dbe7c2" strokeOpacity=".09" strokeWidth="1" />
+                </pattern>
+              </defs>
+              <path fill="url(#career-field)" d="M0 0h900v1200H0z" />
+              <path fill="url(#career-grid)" d="M0 0h900v1200H0z" />
+              <path fill="url(#career-light)" d="M0 0h900v700L410 1200H0z" />
+              <path d="M-120 820 470 230l470 470-590 590z" fill="#173b33" fillOpacity=".72" />
+              <path d="m-80 910 560-560 330 330-560 560z" fill="#29443a" fillOpacity=".48" stroke="#d7e4b5" strokeOpacity=".22" />
+              <path d="M90 1200 650 640M170 1200 730 640M250 1200 810 640M330 1200 890 640" stroke="#d7e4b5" strokeOpacity=".15" />
+              <path d="M62 520h300v-82h210v-82h210v-82h180" fill="none" stroke="#d4e391" strokeOpacity=".62" strokeWidth="2" />
+              <path d="M90 580h250v-70h200v-70h200v-70h190" fill="none" stroke="#d4e391" strokeOpacity=".28" />
+              <circle cx="690" cy="240" r="116" fill="none" stroke="#d4e391" strokeOpacity=".19" />
+              <circle cx="690" cy="240" r="82" fill="none" stroke="#d4e391" strokeOpacity=".12" />
+              <path d="M620 240h140M690 170v140" stroke="#d4e391" strokeOpacity=".19" />
+              <path d="m110 790 77-77 77 77-77 77z" fill="#c5d987" fillOpacity=".1" stroke="#d4e391" strokeOpacity=".45" />
+              <path d="M146 790h82M187 749v82" stroke="#d4e391" strokeOpacity=".65" />
+              <path d="M600 750c75-48 165-48 240 0v150c-75-48-165-48-240 0z" fill="#d4e391" fillOpacity=".1" stroke="#d4e391" strokeOpacity=".4" />
+              <path d="M720 750v150" stroke="#d4e391" strokeOpacity=".4" />
+            </svg>
+          ) : (
+            <img
+              className="campus-image"
+              src={step === 'login' || step === 'details' ? 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1400&q=85' : '/campus-architecture.png'}
+              alt={step === 'login' || step === 'details' ? 'Students collaborating around a table on campus' : 'Modern glass university architecture and a sunlit campus corridor'}
+            />
+          )}
 
           <div className="image-wash" />
 

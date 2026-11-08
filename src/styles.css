@@ -74,8 +74,12 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .visual-panel { position: relative; min-height: 700px; overflow: hidden; color: white; background: #31584b; }
 .campus-image, .image-wash { position: absolute; inset: 0; width: 100%; height: 100%; }
-.campus-image { object-fit: cover; object-position: center; filter: saturate(.78); }
-.image-wash { background: linear-gradient(180deg, rgb(20 42 35 / 8%) 0%, rgb(18 43 34 / 20%) 34%, rgb(15 36 30 / 83%) 100%); }
+.campus-image { object-fit: cover; object-position: 54% center; filter: saturate(.82) contrast(1.04); }
+.image-wash { background: linear-gradient(180deg, rgb(14 31 26 / 20%) 0%, rgb(15 36 30 / 38%) 42%, rgb(12 29 25 / 88%) 100%), linear-gradient(115deg, rgb(13 43 35 / 34%), transparent 62%); }
+.visual-panel-authenticated { isolation: isolate; background: #102923; }
+.career-art { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 24px 34px rgb(0 0 0 / 25%)); }
+.visual-panel-authenticated .image-wash { background: linear-gradient(180deg, rgb(8 20 18 / 15%) 0%, rgb(8 20 18 / 6%) 43%, rgb(8 20 18 / 72%) 100%), radial-gradient(ellipse at 72% 23%, rgb(202 220 138 / 10%), transparent 42%); }
+.visual-panel-authenticated .photo-credit { display: none; }
 
 .visual-copy { position: absolute; right: 38px; bottom: 55px; left: 42px; }
 .eyebrow, .kicker { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
@@ -117,6 +121,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .form-footer { padding-top: 16px; border-top: 1px solid #e9ece6; color: #9aa39d; font-size: 9px; }
 .form-footer-row { display: flex; justify-content: space-between; }
 .form-footer a { display: inline-block; margin-top: 12px; color: var(--forest); font-size: 14px; font-weight: 600; line-height: 1.4; text-decoration: none; }
+.form-footer a + a { margin-left: 18px; }
 .form-footer a:hover { color: #163f36; text-decoration: underline; }
 .form-footer a:focus-visible { border-radius: 2px; outline: 2px solid var(--forest); outline-offset: 3px; text-decoration: underline; }
 .otp-input { height: 60px !important; padding: 0 16px !important; font: 700 24px 'Manrope', sans-serif !important; letter-spacing: 6px; }
@@ -148,8 +153,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .topbar { height: 62px; }
   .registration-layout { display: block; min-height: auto; }
   .visual-panel { min-height: 205px; }
-  .campus-image { object-position: center 42%; }
-  .image-wash { background: linear-gradient(90deg, rgb(15 36 30 / 78%), rgb(15 36 30 / 31%)); }
+  .campus-image { object-position: 54% 52%; }
+  .image-wash { background: linear-gradient(90deg, rgb(13 38 31 / 82%), rgb(13 38 31 / 46%)); }
   .visual-copy { right: 20px; bottom: 20px; left: 22px; }
   .visual-copy h1 { margin: 10px 0 0; font-size: 30px; }
   .visual-copy p, .visual-bottom, .photo-credit { display: none; }
