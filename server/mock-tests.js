@@ -1,10 +1,11 @@
-
 import { Router } from 'express';
 import { requireAuth, requireRoles } from './security.js';
 
 const DURATION_SECONDS = 15 * 60;
+const QUESTIONS_PER_TEST = 10;
 
-const QUESTIONS = [
+// The correct answers are stored only on the server.
+const QUESTION_BANK = [
   {
     id: 'q1',
     question: 'Which data structure follows the FIFO principle?',
@@ -117,8 +118,28 @@ const QUESTIONS = [
   },
 ];
 
-function publicQuestions() {
-  return QUESTIONS.map(({ id, question, options }) => ({
+function getAttemptQuestions(attemptId) {
+  // A deterministic shuffle ensures the same attempt gets
+  // the same questions after a page refresh or server restart.
+  let seed = Number(attemptId) || 1;
+
+  function random() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  }
+
+  const shuffled = [...QUESTION_BANK];
+
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled.slice(0, QUESTIONS_PER_TEST);
+}
+
+function publicQuestions(attemptQuestions) {
+  return attemptQuestions.map(({ id, question, options }) => ({
     id,
     question,
     options,
@@ -130,22 +151,18 @@ function positiveId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-function calculateScore(answers) {
-  let score = 0;
-
-  for (const question of QUESTIONS) {
-    if (answers[question.id] === question.answer) {
-      score += 1;
-    }
-  }
-
-  return score;
+function calculateScore(answers, attemptQuestions) {
+  return attemptQuestions.reduce(
+    (score, question) =>
+      score + (answers[question.id] === question.answer ? 1 : 0),
+    0,
+  );
 }
 
 export function createMockTestRouter(dbPool) {
   const router = Router();
 
-  // Start a new timed mock test.
+  // START A NEW MOCK TEST
   router.post(
     '/mock-tests/attempts',
     requireAuth,
@@ -156,7 +173,7 @@ export function createMockTestRouter(dbPool) {
           `INSERT INTO mock_test_attempts
             (student_id, total_questions)
            VALUES (?, ?)`,
-          [req.auth.sub, QUESTIONS.length],
+          [req.auth.sub, QUESTIONS_PER_TEST],
         );
 
         const [rows] = await dbPool.execute(
@@ -180,17 +197,20 @@ export function createMockTestRouter(dbPool) {
           });
         }
 
+        const attempt = rows[0];
+        const attemptQuestions = getAttemptQuestions(attempt.id);
+
         const remainingSeconds = Math.max(
           0,
-          DURATION_SECONDS - Number(rows[0].elapsed_seconds),
+          DURATION_SECONDS - Number(attempt.elapsed_seconds),
         );
 
         return res.status(201).json({
-          attemptId: rows[0].id,
-          startedAt: rows[0].started_at,
+          attemptId: attempt.id,
+          startedAt: attempt.started_at,
           durationSeconds: DURATION_SECONDS,
           remainingSeconds,
-          questions: publicQuestions(),
+          questions: publicQuestions(attemptQuestions),
         });
       } catch (error) {
         return next(error);
@@ -198,7 +218,7 @@ export function createMockTestRouter(dbPool) {
     },
   );
 
-  // Resume an existing attempt without resetting its timer.
+  // RESUME AN EXISTING ATTEMPT
   router.get(
     '/mock-tests/attempts/:attemptId',
     requireAuth,
@@ -238,6 +258,7 @@ export function createMockTestRouter(dbPool) {
         }
 
         const attempt = rows[0];
+        const attemptQuestions = getAttemptQuestions(attempt.id);
 
         return res.json({
           attemptId: attempt.id,
@@ -250,7 +271,9 @@ export function createMockTestRouter(dbPool) {
           submitted: Boolean(attempt.submitted_at),
           score: attempt.score,
           totalQuestions: attempt.total_questions,
-          questions: attempt.submitted_at ? [] : publicQuestions(),
+          questions: attempt.submitted_at
+            ? []
+            : publicQuestions(attemptQuestions),
         });
       } catch (error) {
         return next(error);
@@ -258,7 +281,7 @@ export function createMockTestRouter(dbPool) {
     },
   );
 
-  // Validate, score and save submitted answers.
+  // SUBMIT AND AUTOMATICALLY SCORE THE TEST
   router.post(
     '/mock-tests/attempts/:attemptId/submit',
     requireAuth,
@@ -283,35 +306,13 @@ export function createMockTestRouter(dbPool) {
         });
       }
 
-      const validQuestionIds = new Set(
-        QUESTIONS.map((question) => question.id),
-      );
-
-      const validOptionIds = new Map(
-        QUESTIONS.map((question) => [
-          question.id,
-          new Set(question.options.map((option) => option.id)),
-        ]),
-      );
-
-      for (const [questionId, optionId] of Object.entries(answers)) {
-        if (
-          !validQuestionIds.has(questionId) ||
-          typeof optionId !== 'string' ||
-          !validOptionIds.get(questionId).has(optionId)
-        ) {
-          return res.status(400).json({
-            message: 'One or more answers are invalid.',
-          });
-        }
-      }
-
       try {
         const [rows] = await dbPool.execute(
           `SELECT
              id,
              submitted_at,
              score,
+             total_questions,
              TIMESTAMPDIFF(
                SECOND,
                started_at,
@@ -338,8 +339,34 @@ export function createMockTestRouter(dbPool) {
           });
         }
 
-        // The server enforces the deadline independently
-        // of the browser countdown.
+        const attemptQuestions = getAttemptQuestions(attempt.id);
+
+        // Validate answers against the exact questions
+        // assigned to this attempt.
+        const validQuestionIds = new Set(
+          attemptQuestions.map((question) => question.id),
+        );
+
+        const validOptionIds = new Map(
+          attemptQuestions.map((question) => [
+            question.id,
+            new Set(question.options.map((option) => option.id)),
+          ]),
+        );
+
+        for (const [questionId, optionId] of Object.entries(answers)) {
+          if (
+            !validQuestionIds.has(questionId) ||
+            typeof optionId !== 'string' ||
+            !validOptionIds.get(questionId).has(optionId)
+          ) {
+            return res.status(400).json({
+              message: 'One or more answers are invalid.',
+            });
+          }
+        }
+
+        // Server-side timer enforcement.
         if (Number(attempt.elapsed_seconds) >= DURATION_SECONDS) {
           const [expiredUpdate] = await dbPool.execute(
             `UPDATE mock_test_attempts
@@ -364,12 +391,12 @@ export function createMockTestRouter(dbPool) {
           return res.status(410).json({
             message: 'Time is up. Your mock test has expired.',
             score: 0,
-            totalQuestions: QUESTIONS.length,
+            totalQuestions: QUESTIONS_PER_TEST,
             expired: true,
           });
         }
 
-        const score = calculateScore(answers);
+        const score = calculateScore(answers, attemptQuestions);
 
         const [update] = await dbPool.execute(
           `UPDATE mock_test_attempts
@@ -396,9 +423,9 @@ export function createMockTestRouter(dbPool) {
         return res.json({
           attemptId,
           score,
-          totalQuestions: QUESTIONS.length,
+          totalQuestions: QUESTIONS_PER_TEST,
           percentage: Math.round(
-            (score / QUESTIONS.length) * 100,
+            (score / QUESTIONS_PER_TEST) * 100,
           ),
           message: 'Mock test submitted successfully.',
         });
@@ -408,7 +435,7 @@ export function createMockTestRouter(dbPool) {
     },
   );
 
-  // Get the logged-in student's mock test history.
+  // GET THE LOGGED-IN STUDENT'S TEST HISTORY
   router.get(
     '/mock-tests/history',
     requireAuth,
