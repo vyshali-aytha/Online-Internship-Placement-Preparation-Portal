@@ -88,3 +88,13 @@ test('readiness is 503, not a hang, when the database never answers', async () =
   const res = await readiness({ query: () => new Promise(() => {}) }, { timeoutMs: 50 });
   assert.equal(res.status, 503);
 });
+
+test('an empty monitoring window reports unavailable availability percentage', () => {
+  const tracker = createIncidentTracker();
+  const summary = tracker.summary();
+
+  assert.equal(summary.totalChecks, 0);
+  assert.equal(summary.failedChecks, 0);
+  assert.equal(summary.availabilityPercent, null);
+  assert.deepEqual(summary.incidents, []);
+});

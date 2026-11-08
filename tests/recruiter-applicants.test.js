@@ -204,3 +204,66 @@ test('applications already at Interview or Selected are not overwritten', async 
   assert.equal(res.status, 409);
   assert.equal(applications.find((a) => a.id === 11).status, 'Interview');
 });
+
+test('invalid IDs and missing applications are rejected', async () => {
+  const invalidListing = await api('/api/recruiter/listings/invalid/applicants', {
+    token: rec17(),
+  });
+  assert.equal(invalidListing.status, 400);
+
+  const invalidApplication = await api('/api/recruiter/applications/invalid/status', {
+    token: rec17(),
+    method: 'PATCH',
+    body: { status: 'Rejected' },
+  });
+  assert.equal(invalidApplication.status, 400);
+
+  const missingApplication = await api('/api/recruiter/applications/999/status', {
+    token: rec17(),
+    method: 'PATCH',
+    body: { status: 'Rejected' },
+  });
+  assert.equal(missingApplication.status, 404);
+});
+
+test('malformed and null profile snapshots produce safe empty applicant profiles', async () => {
+  resetApplications();
+
+  for (const value of ['not-json', 'null']) {
+    applications[0].profile_snapshot = value;
+
+    const result = await api('/api/recruiter/listings/1/applicants', {
+      token: rec17(),
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.applicants[0].student.fullName, null);
+    assert.equal(result.body.applicants[0].student.email, null);
+  }
+});
+
+test('concurrent application status changes return a conflict', async () => {
+  resetApplications();
+
+  const originalExecute = fakePool.execute;
+
+  fakePool.execute = async function (sql, values = []) {
+    if (String(sql).trim().toUpperCase().startsWith('UPDATE APPLICATIONS SET STATUS')) {
+      return [{ affectedRows: 0 }, []];
+    }
+
+    return originalExecute.call(this, sql, values);
+  };
+
+  try {
+    const result = await api('/api/recruiter/applications/10/status', {
+      token: rec17(),
+      method: 'PATCH',
+      body: { status: 'Shortlisted' },
+    });
+
+    assert.equal(result.status, 409);
+  } finally {
+    fakePool.execute = originalExecute;
+  }
+});
