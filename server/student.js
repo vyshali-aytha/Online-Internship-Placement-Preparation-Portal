@@ -22,9 +22,10 @@ router.get('/profile', requireAuth, requireRoles('student'), async (req, res, ne
     const [rows] = await pool.execute(
       `SELECT s.full_name, s.institutional_email, s.student_id, s.course,
               p.phone, p.location, p.headline, p.bio, p.cgpa, p.skills, p.projects,
-              p.updated_at
+              p.updated_at, r.original_name AS resume_file_name
        FROM students s
        LEFT JOIN student_profiles p ON p.student_id = s.id
+       LEFT JOIN student_resumes r ON r.student_id = s.id
        WHERE s.id = ? LIMIT 1`,
       [req.auth.sub],
     );

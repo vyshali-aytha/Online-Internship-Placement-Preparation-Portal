@@ -34,6 +34,7 @@ function editableFields(profile: StudentProfile): EditableProfile {
 
 export default function ProfilePage({ token }: { token: string }) {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [resumeFileName, setResumeFileName] = useState('');
   const [form, setForm] = useState<EditableProfile>(emptyProfile);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -44,6 +45,7 @@ export default function ProfilePage({ token }: { token: string }) {
       .then((result) => {
         setProfile(result);
         setForm(editableFields(result));
+        setResumeFileName(result.resume_file_name || '');
       })
       .catch((loadError: unknown) =>
         setError(
@@ -92,14 +94,18 @@ export default function ProfilePage({ token }: { token: string }) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const previousFileName = resumeFileName;
+    setResumeFileName(file.name);
     setBusy(true);
     setNotice('');
     setError('');
 
     try {
-      await uploadStudentResume(token, file);
+      const result = await uploadStudentResume(token, file);
+      setResumeFileName(result.fileName || file.name);
       setNotice('Resume uploaded and ready to download.');
     } catch (uploadError: unknown) {
+      setResumeFileName(previousFileName);
       setError(
         uploadError instanceof Error
           ? uploadError.message
@@ -300,12 +306,20 @@ export default function ProfilePage({ token }: { token: string }) {
           A new upload replaces the current resume.
         </p>
 
-        <input
-          type="file"
-          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={handleResume}
-          disabled={busy}
-        />
+        <div className="resume-file-control">
+          <label className={`resume-file-picker${busy ? ' is-disabled' : ''}`}>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={handleResume}
+              disabled={busy}
+            />
+            <span className="resume-file-picker-button">Choose File</span>
+          </label>
+          <span className="resume-file-name" aria-live="polite">
+            {resumeFileName || 'No resume uploaded yet.'}
+          </span>
+        </div>
 
         <button
           className="back-button"

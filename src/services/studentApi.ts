@@ -10,6 +10,7 @@ export type StudentProfile = {
   cgpa: number | null;
   skills: string | null;
   projects: string | null;
+  resume_file_name?: string | null;
 };
 
 export type EditableProfile = Pick<StudentProfile, 'phone' | 'location' | 'headline' | 'bio' | 'cgpa' | 'skills' | 'projects'>;
@@ -63,7 +64,7 @@ export async function uploadStudentResume(token: string, file: File) {
     headers: authHeaders(token),
     body: formData,
   });
-  return readResponse(response);
+  return readResponse(response) as Promise<{ message?: string; fileName?: string; fileSize?: number }>;
 }
 
 export async function downloadStudentResume(token: string) {
