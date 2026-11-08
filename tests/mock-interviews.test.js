@@ -434,3 +434,72 @@ test('invalid booking IDs and feedback are rejected', async () => {
 
   assert.equal(invalidBooking.status, 400);
 });
+test('mock interview rejects invalid slot times and unavailable slots', async () => {
+  const adminToken = token('admin:test@example.edu', 'ADMIN');
+  const studentToken = token('1', 'STUDENT');
+
+  const invalidDate = await api('/api/mock-interviews/admin/slots', {
+    authToken: adminToken,
+    method: 'POST',
+    body: { startsAt: 'not-a-date', endsAt: new Date(Date.now() + 3600000).toISOString() },
+  });
+  assert.equal(invalidDate.status, 400);
+
+  const future = new Date(Date.now() + 8 * 3600000);
+  const pastEnd = new Date(future.getTime() - 60000);
+
+  const invalidOrder = await api('/api/mock-interviews/admin/slots', {
+    authToken: adminToken,
+    method: 'POST',
+    body: { startsAt: future.toISOString(), endsAt: pastEnd.toISOString() },
+  });
+  assert.equal(invalidOrder.status, 400);
+
+  const unavailable = await api('/api/mock-interviews/bookings', {
+    authToken: studentToken,
+    method: 'POST',
+    body: { slotId: 999999 },
+  });
+  assert.equal(unavailable.status, 404);
+});
+
+test('admin can review interview bookings and duplicate slots are rejected', async () => {
+  const adminToken = token('admin:test@example.edu', 'ADMIN');
+  const studentToken = token('1', 'STUDENT');
+
+  const startsAt = new Date(Date.now() + 12 * 3600000);
+  const endsAt = new Date(startsAt.getTime() + 30 * 60000);
+  const body = {
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
+  };
+
+  const created = await api('/api/mock-interviews/admin/slots', {
+    authToken: adminToken,
+    method: 'POST',
+    body,
+  });
+  assert.equal(created.status, 201);
+
+  const duplicateSlot = await api('/api/mock-interviews/admin/slots', {
+    authToken: adminToken,
+    method: 'POST',
+    body,
+  });
+  assert.equal(duplicateSlot.status, 409);
+
+  const booking = await api('/api/mock-interviews/bookings', {
+    authToken: studentToken,
+    method: 'POST',
+    body: { slotId: created.body.id },
+  });
+  assert.equal(booking.status, 201);
+
+  const adminBookings = await api('/api/mock-interviews/admin/bookings', {
+    authToken: adminToken,
+  });
+  assert.equal(adminBookings.status, 200);
+  assert.ok(adminBookings.body.some(
+    item => item.booking_id === booking.body.bookingId
+  ));
+});

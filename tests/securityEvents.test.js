@@ -37,3 +37,25 @@ test('security logger excludes passwords, tokens, emails, and arbitrary fields',
 test('invalid security event identifiers are rejected', () => {
   assert.throws(() => logSecurityEvent('invalid event name'), TypeError);
 });
+
+test('security metadata ignores non-allowlisted and non-finite values', () => {
+  const output = [];
+
+  logSecurityEvent('test.metadata.validation', {
+    actorType: 'student',
+    actorId: 42,
+    statusCode: Number.NaN,
+    reason: Number.POSITIVE_INFINITY,
+    role: true,
+    arbitrary: 'must not appear',
+  }, line => output.push(line));
+
+  const record = JSON.parse(output[0]);
+
+  assert.equal(record.actorType, 'student');
+  assert.equal(record.actorId, 42);
+  assert.equal('statusCode' in record, false);
+  assert.equal('reason' in record, false);
+  assert.equal('role' in record, false);
+  assert.equal('arbitrary' in record, false);
+});
