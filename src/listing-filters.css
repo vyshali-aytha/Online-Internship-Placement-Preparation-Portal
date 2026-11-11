@@ -1,0 +1,6 @@
+/* Student listing filters (F-008). Reuses the existing .field, .compact-field and button classes. */
+
+.listing-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; align-items: end; margin: 18px 0 22px; padding: 16px; border: 1px solid var(--line); background: var(--paper); }
+.listing-filters .report-filter-actions { grid-column: 1 / -1; justify-content: flex-start; padding: 0; }
+.listing-filters .primary-button { width: auto; margin: 0; }
+.listing-filter-note { margin: -8px 0 16px; color: var(--muted); font-size: 11px; }
