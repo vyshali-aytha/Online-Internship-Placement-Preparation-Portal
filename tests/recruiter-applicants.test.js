@@ -175,6 +175,21 @@ test('a recruiter can mark an applicant as shortlisted or rejected', async () =>
   assert.equal(applications.find((a) => a.id === 10).status, 'Rejected');
 });
 
+test('a recruiter can select an applicant and selected applications cannot be changed here', async () => {
+  resetApplications();
+  const selected = await api('/api/recruiter/applications/10/status', {
+    token: rec17(), method: 'PATCH', body: { status: 'Selected' },
+  });
+  assert.equal(selected.status, 200);
+  assert.equal(applications.find((a) => a.id === 10).status, 'Selected');
+
+  const changed = await api('/api/recruiter/applications/10/status', {
+    token: rec17(), method: 'PATCH', body: { status: 'Rejected' },
+  });
+  assert.equal(changed.status, 409);
+  assert.equal(applications.find((a) => a.id === 10).status, 'Selected');
+});
+
 test("a recruiter cannot change an application on another recruiter's listing", async () => {
   resetApplications();
   const res = await api('/api/recruiter/applications/20/status', {
@@ -184,9 +199,9 @@ test("a recruiter cannot change an application on another recruiter's listing", 
   assert.equal(applications.find((a) => a.id === 20).status, 'Applied');
 });
 
-test('only Shortlisted and Rejected are accepted as decisions', async () => {
+test('only Shortlisted, Selected, and Rejected are accepted as decisions', async () => {
   resetApplications();
-  for (const status of ['Selected', 'Interview', 'Applied', 'approved', '', undefined, 5]) {
+  for (const status of ['Interview', 'Applied', 'approved', '', undefined, 5]) {
     const res = await api('/api/recruiter/applications/10/status', {
       token: rec17(), method: 'PATCH', body: { status },
     });

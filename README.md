@@ -47,7 +47,7 @@ Recruiters can:
 - Log in after administrative approval
 - Create internship/placement listings
 - View applicants
-- Shortlist or reject applicants
+- Shortlist, select, or reject applicants
 
 ### Placement Cell Admin
 
@@ -148,7 +148,7 @@ flowchart LR
     B --> C[Login]
     C --> D[Create Listing]
     D --> E[View Applicants]
-    E --> F[Shortlist / Reject]
+    E --> F[Shortlist / Select / Reject]
 ```
 
 ###  Placement Preparation

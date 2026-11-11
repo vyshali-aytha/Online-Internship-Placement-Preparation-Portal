@@ -16,7 +16,7 @@ import {
 import './recruiter-portal.css';
 
 const TOKEN_KEY = 'oipp_recruiter_token';
-// Statuses a recruiter may change; Interview/Selected are managed elsewhere.
+// Selected applications are terminal here; Interview is managed elsewhere.
 const CHANGEABLE = ['Applied', 'Shortlisted', 'Rejected'];
 
 type FormErrors = Partial<Record<keyof NewListingInput, string>>;
@@ -205,6 +205,7 @@ export default function RecruiterDashboardPage() {
     if (busyKey) return;
     const name = applicant.student.fullName || 'this applicant';
     if (status === 'Rejected' && !window.confirm(`Reject ${name}'s application?`)) return;
+    if (status === 'Selected' && !window.confirm(`Select ${name} for this opportunity?`)) return;
 
     setBusyKey(`app-${applicant.applicationId}`);
     setNotice('');
@@ -420,7 +421,7 @@ export default function RecruiterDashboardPage() {
             <div className="admin-panel-heading">
               <div>
                 <h2 id="applicants-title">Applicants for {selected.title}</h2>
-                <p>Shortlist or reject candidates. Students see the update in their application tracker.</p>
+                <p>Shortlist, select, or reject candidates. Students see the update in their application tracker.</p>
               </div>
               <button className="admin-link-button" type="button" onClick={() => setSelected(null)}>Close panel</button>
             </div>
@@ -464,13 +465,18 @@ export default function RecruiterDashboardPage() {
                       </div>
                       <div className="request-actions rec-applicant-actions">
                         {locked ? (
-                          <span className="rec-muted">Managed elsewhere</span>
+                          <span className="rec-muted">{applicant.status === 'Selected' ? 'Selected' : 'Managed elsewhere'}</span>
                         ) : (
                           <>
                             <button className="decision-button decision-approve" type="button"
                               disabled={busyKey !== null || applicant.status === 'Shortlisted'}
                               onClick={() => void decide(applicant, 'Shortlisted')}>
                               {busy ? 'Saving…' : applicant.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist'}
+                            </button>
+                            <button className="decision-button decision-approve" type="button"
+                              disabled={busyKey !== null}
+                              onClick={() => void decide(applicant, 'Selected')}>
+                              {busy ? 'Saving…' : 'Select'}
                             </button>
                             <button className="decision-button decision-reject" type="button"
                               disabled={busyKey !== null || applicant.status === 'Rejected'}
