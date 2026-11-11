@@ -49,7 +49,7 @@ export type ApplicantsResult = {
   applicants: Applicant[];
 };
 
-export type Decision = 'Shortlisted' | 'Rejected';
+export type Decision = 'Shortlisted' | 'Selected' | 'Rejected';
 
 export class RecruiterPortalError extends Error {
   status: number;

@@ -6,15 +6,14 @@ import {
 } from './security.js';
 
 // F-017: approved recruiters view applicants for THEIR OWN listings and mark them
-// Shortlisted or Rejected. Ownership is checked in the database query every time
+// Shortlisted, Selected, or Rejected. Ownership is checked in the database query every time
 // (the listing's recruiter_id must equal the recruiter in the verified token), and a
 // listing that belongs to someone else looks exactly like one that does not exist.
 // The student's application tracker (GET /api/student/applications) reads the same
 // applications.status column, so a change here shows up there immediately.
 
-const DECISIONS = ['Shortlisted', 'Rejected'];
-// Statuses the recruiter may change. Interview/Selected are set elsewhere and are
-// not overwritten from this screen.
+const DECISIONS = ['Shortlisted', 'Selected', 'Rejected'];
+// Selected and Interview are terminal here; only Interview is managed elsewhere.
 const CHANGEABLE = ['Applied', 'Shortlisted', 'Rejected'];
 
 const recruiterOnly = [
@@ -106,7 +105,7 @@ export function createRecruiterApplicantsRouter(dbPool) {
 
       const status = req.body?.status;
       if (!DECISIONS.includes(status)) {
-        return res.status(400).json({ message: 'Status must be Shortlisted or Rejected.' });
+        return res.status(400).json({ message: 'Status must be Shortlisted, Selected, or Rejected.' });
       }
 
       const [rows] = await dbPool.execute(
