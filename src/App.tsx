@@ -759,6 +759,7 @@ function App() {
             </div>
 
             <a href="/admin/login">Admin Login</a>
+            <a href="/recruiter/login">Recruiter Login</a>
             <a href="/mock-interviews">Mock Interviews</a>
           </footer>
         </section>
