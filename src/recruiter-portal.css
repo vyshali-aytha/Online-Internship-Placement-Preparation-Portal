@@ -1,0 +1,49 @@
+/* Styles for the recruiter portal.
+   Reuses the existing design tokens and admin classes from styles.css. */
+
+.compact-field textarea { width: 100%; padding: 10px 12px; border: 1px solid #dce3da; border-radius: 6px; background: #fff; color: var(--ink); font: inherit; resize: vertical; }
+.compact-field textarea:focus { outline: 2px solid rgb(42 92 65 / 18%); outline-offset: 1px; }
+.compact-field [aria-invalid='true'] { border-color: var(--coral); }
+.compact-field .field-error { color: #a93d2c; font-size: 10px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+
+.rec-create-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 20px 22px 22px; }
+.rec-create-form .rec-wide { grid-column: 1 / -1; }
+.rec-check { display: flex; align-items: center; gap: 9px; align-self: end; min-height: 42px; color: var(--ink); font-size: 12px; font-weight: 600; }
+.rec-check input { width: 16px; height: 16px; accent-color: var(--forest); }
+.rec-form-actions { display: flex; justify-content: flex-end; }
+.rec-form-actions .primary-button { width: auto; min-width: 180px; }
+
+.rec-badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; background: #eef0ea; color: #56635c; font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; }
+.rec-badge-open, .rec-badge-shortlisted, .rec-badge-selected { background: #eaf0d8; color: #405b32; }
+.rec-badge-draft, .rec-badge-applied, .rec-badge-interview { background: #fbf1d9; color: #8a6414; }
+.rec-badge-closed, .rec-badge-rejected { background: #fcefeb; color: #a44735; }
+
+.decision-button.rec-neutral { border-color: var(--line); background: var(--paper); color: var(--forest); }
+.decision-button.rec-neutral:hover:not(:disabled) { background: #f2f4e9; }
+.rec-row-selected td { background: #f8faf2; }
+.rec-signed-out { margin-top: 24px; }
+
+.rec-applicants { margin-top: 24px; }
+.rec-inline-feedback { margin: 14px 22px 0; }
+.rec-applicant-list { margin: 0; padding: 0; list-style: none; }
+.rec-applicant { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 18px 22px; border-top: 1px solid #eef0ea; }
+.rec-applicant:first-child { border-top: 0; }
+.rec-applicant-main { min-width: 0; flex: 1; }
+.rec-applicant-head { display: flex; align-items: center; gap: 12px; }
+.rec-applicant-head strong { color: var(--ink); font: 700 14px 'Manrope', sans-serif; }
+.rec-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+.rec-meta a { color: var(--forest); text-decoration: none; overflow-wrap: anywhere; }
+.rec-meta a:hover { text-decoration: underline; }
+.rec-headline { margin: 8px 0 0; color: var(--ink); font-size: 12px; font-weight: 600; }
+.rec-detail { margin: 6px 0 0; color: #46534c; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.rec-muted { color: var(--muted); font-size: 11px; }
+.rec-applicant-actions { flex: none; align-items: center; }
+
+@media (max-width: 900px) {
+  .rec-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .rec-create-form { grid-template-columns: 1fr; padding: 16px; }
+  .rec-applicant { flex-direction: column; padding: 16px; }
+  .rec-applicant-actions { width: 100%; }
+}
