@@ -44,7 +44,7 @@ The automated test suite covers selected areas of the OIPP backend, including:
 - Sensitive-data redaction and security-event handling.
 - Selected benchmark calculations.
 
-The test suite contains unit-level tests as well as middleware, route/API, and integration-style tests. These tests exercise different levels of application behaviour; therefore, the entire suite is not classified as exclusively isolated unit tests.
+The test suite contains a mix of unit, middleware, route/API, and integration-style tests. The suite targets selected backend behaviours rather than all application workflows.
 
 ## 4. Testing Environment
 
@@ -93,7 +93,7 @@ The existing tests use supporting techniques such as:
 - Environment-variable setup and restoration for configuration-dependent tests.
 - In-memory data structures and reset helpers to isolate test scenarios.
 
-These techniques make it possible to test selected application behaviour in a controlled local environment without requiring every test to connect to production services.
+The tests do not connect to a live MySQL database, SMTP server, or external APIs. Instead, they use fake database-pool objects, local in-memory HTTP servers, and controlled request/response objects.
 
 ## 6. Testing Approach
 
@@ -112,7 +112,9 @@ The suite includes tests for successful operations, invalid inputs, rejected req
 
 ## 7. Test Suite Organisation
 
-The automated test suite contains 18 test files with a total of 125 declared tests.
+The automated test suite contains 18 test files with a total of 125 tests executed.
+
+The official test count follows the Node.js test runner output in `docs/testing/evidence/unit-test-output.txt`, which recorded 125 tests executed and 125 passed.
 
 | No. | Test file | Number of tests |
 |---:|---|---:|
@@ -231,16 +233,16 @@ The review of the current test inventory identified some scenarios for which dir
 
 | Area | Observation |
 |---|---|
-| OTP registration | Direct tests for the complete OTP request and verification flow were not identified. |
-| Student login | Direct success and failure tests for the complete login flow were not identified. |
-| Account lockout | Direct assertions for failed-login counters and lockout timestamps were not identified. |
-| Student profile management | Validation is tested, but complete profile create, read, update, and delete behaviour was not identified. |
-| Resume handling | Resume signature validation is tested; complete upload and replacement behaviour was not identified. |
-| PDF generation | A direct automated test for the complete PDF-generation flow was not identified. |
-| Application submission | A direct automated test for student application submission was not identified. |
-| Application tracking | Recruiter-side status updates are tested; complete student-facing application tracking was not identified. |
-| Duplicate applications | An explicit test for preventing duplicate applications was not identified. |
-| Interview question bank | A direct automated test for the question-bank functionality was not identified. |
+| OTP registration | No direct automated test found for the complete OTP request and verification flow. |
+| Student login | No direct automated test found for the complete student login flow. |
+| Account lockout | No direct automated test found for failed-login counters and lockout behaviour. |
+| Student profile management | Partially tested; profile validation is covered, but complete profile create, read, update, and delete behaviour was not directly automated. |
+| Resume handling | Partially tested; resume signature validation is covered, but complete upload and replacement behaviour was not directly automated. |
+| PDF generation | No direct automated test found for the complete PDF-generation flow. |
+| Application submission | No direct automated test found for student application submission. |
+| Application tracking | Partially tested; recruiter-side status updates are covered, but complete student-facing application tracking was not directly automated. |
+| Duplicate applications | No direct automated test found for preventing duplicate applications. |
+| Interview question bank | No direct automated test found for the question-bank functionality. |
 
 These observations are based on the reviewed test inventory. They indicate areas where additional automated tests may be useful; they do not establish that the corresponding application features are absent or non-functional.
 
@@ -260,8 +262,9 @@ The following limitations apply to the tests described in this report:
 
 The automated test suite for OIPP was executed successfully in the local Windows development environment using Node.js v22.19.0 and npm 10.9.3.
 
-A total of 125 tests across 18 test files were executed. All 125 tests passed, with zero failures, zero skipped tests, and zero cancelled tests.
+This is a targeted automated backend test suite and does not represent complete end-to-end or production-equivalent validation of every OIPP workflow.
 
+A total of 125 tests across 18 test files were executed. All 125 tests passed, with zero failures, zero skipped tests, and zero cancelled tests.
 The suite exercises selected application logic, input validation, authentication, authorisation, route behaviour, recruiter operations, student-related functionality, and security controls. The review also identified areas where additional automated tests could improve the coverage of important application workflows.
 
 Overall, the recorded execution indicates that the scenarios included in the existing automated test suite passed successfully.
