@@ -1,0 +1,769 @@
+
+> test
+> node --test
+
+TAP version 13
+# Subtest: admin placement summary requires admin authentication
+ok 1 - admin placement summary requires admin authentication
+  ---
+  duration_ms: 328.125
+  type: 'test'
+  ...
+# Subtest: admin placement summary calculates totals and selection rate for all branches
+ok 2 - admin placement summary calculates totals and selection rate for all branches
+  ---
+  duration_ms: 59.249
+  type: 'test'
+  ...
+# Subtest: admin placement summary honors branch and inclusive date filters
+ok 3 - admin placement summary honors branch and inclusive date filters
+  ---
+  duration_ms: 35.675
+  type: 'test'
+  ...
+# Subtest: admin placement summary rejects invalid dates
+ok 4 - admin placement summary rejects invalid dates
+  ---
+  duration_ms: 7.3301
+  type: 'test'
+  ...
+# Subtest: student password uses bcrypt and verifies with its salt
+ok 5 - student password uses bcrypt and verifies with its salt
+  ---
+  duration_ms: 1016.7801
+  type: 'test'
+  ...
+# Subtest: JWT includes subject, normalized role, expiry, and rejects tampering
+ok 6 - JWT includes subject, normalized role, expiry, and rejects tampering
+  ---
+  duration_ms: 9.4901
+  type: 'test'
+  ...
+# Subtest: invalid JWT expiration configuration is rejected
+ok 7 - invalid JWT expiration configuration is rejected
+  ---
+  duration_ms: 1.1521
+  type: 'test'
+  ...
+# Subtest: matching student, recruiter, and admin roles are allowed
+ok 8 - matching student, recruiter, and admin roles are allowed
+  ---
+  duration_ms: 19.0635
+  type: 'test'
+  ...
+# Subtest: cross-role access is forbidden
+ok 9 - cross-role access is forbidden
+  ---
+  duration_ms: 2.0009
+  type: 'test'
+  ...
+# Subtest: role middleware denies requests without authentication
+ok 10 - role middleware denies requests without authentication
+  ---
+  duration_ms: 0.3375
+  type: 'test'
+  ...
+# Subtest: role middleware rejects invalid configuration
+ok 11 - role middleware rejects invalid configuration
+  ---
+  duration_ms: 1.7793
+  type: 'test'
+  ...
+# Subtest: recruiter approval middleware fails closed without a verifier
+ok 12 - recruiter approval middleware fails closed without a verifier
+  ---
+  duration_ms: 0.4154
+  type: 'test'
+  ...
+# Subtest: recruiter approval is based on the current verifier result
+ok 13 - recruiter approval is based on the current verifier result
+  ---
+  duration_ms: 1.0836
+  type: 'test'
+  ...
+# Subtest: students and admins cannot use recruiter-only middleware
+ok 14 - students and admins cannot use recruiter-only middleware
+  ---
+  duration_ms: 3.1251
+  type: 'test'
+  ...
+# Subtest: bcrypt hashes and verifies dummy passwords
+ok 15 - bcrypt hashes and verifies dummy passwords
+  ---
+  duration_ms: 1085.7117
+  type: 'test'
+  ...
+# Subtest: valid JWT contains subject, role, issue time, and expiry claims
+ok 16 - valid JWT contains subject, role, issue time, and expiry claims
+  ---
+  duration_ms: 17.7027
+  type: 'test'
+  ...
+# Subtest: malformed tokens are rejected
+ok 17 - malformed tokens are rejected
+  ---
+  duration_ms: 1.5755
+  type: 'test'
+  ...
+# Subtest: tampered payload and signature are rejected
+ok 18 - tampered payload and signature are rejected
+  ---
+  duration_ms: 32.6102
+  type: 'test'
+  ...
+# Subtest: expired JWT is rejected
+ok 19 - expired JWT is rejected
+  ---
+  duration_ms: 3.6409
+  type: 'test'
+  ...
+# Subtest: unsupported JWT algorithms are rejected
+ok 20 - unsupported JWT algorithms are rejected
+  ---
+  duration_ms: 1.4466
+  type: 'test'
+  ...
+# Subtest: invalid JWT claims are rejected
+ok 21 - invalid JWT claims are rejected
+  ---
+  duration_ms: 1.7899
+  type: 'test'
+  ...
+# Subtest: missing JWT_SECRET is rejected
+ok 22 - missing JWT_SECRET is rejected
+  ---
+  duration_ms: 3.6296
+  type: 'test'
+  ...
+# Subtest: too-short JWT_SECRET is rejected
+ok 23 - too-short JWT_SECRET is rejected
+  ---
+  duration_ms: 1.4576
+  type: 'test'
+  ...
+# Subtest: invalid JWT_EXPIRES_IN configurations are rejected
+ok 24 - invalid JWT_EXPIRES_IN configurations are rejected
+  ---
+  duration_ms: 1.693
+  type: 'test'
+  ...
+# Subtest: valid JWT_EXPIRES_IN configurations are accepted
+ok 25 - valid JWT_EXPIRES_IN configurations are accepted
+  ---
+  duration_ms: 1.4812
+  type: 'test'
+  ...
+# Subtest: no failures means 100% availability and no incidents
+ok 26 - no failures means 100% availability and no incidents
+  ---
+  duration_ms: 4.3226
+  type: 'test'
+  ...
+# Subtest: an outage is recorded from the first failed check to recovery
+ok 27 - an outage is recorded from the first failed check to recovery
+  ---
+  duration_ms: 1.8486
+  type: 'test'
+  ...
+# Subtest: separate outages are separate incidents
+ok 28 - separate outages are separate incidents
+  ---
+  duration_ms: 0.5842
+  type: 'test'
+  ...
+# Subtest: an outage still going when monitoring stops is flagged as ongoing
+ok 29 - an outage still going when monitoring stops is flagged as ongoing
+  ---
+  duration_ms: 0.4266
+  type: 'test'
+  ...
+# Subtest: readiness is 200 when the database answers
+ok 30 - readiness is 200 when the database answers
+  ---
+  duration_ms: 269.2769
+  type: 'test'
+  ...
+# Subtest: readiness is 503 when the database fails, without leaking error details
+ok 31 - readiness is 503 when the database fails, without leaking error details
+  ---
+  duration_ms: 42.0868
+  type: 'test'
+  ...
+# Subtest: readiness is 503, not a hang, when the database never answers
+ok 32 - readiness is 503, not a hang, when the database never answers
+  ---
+  duration_ms: 95.744
+  type: 'test'
+  ...
+# Subtest: an empty monitoring window reports unavailable availability percentage
+ok 33 - an empty monitoring window reports unavailable availability percentage
+  ---
+  duration_ms: 0.8655
+  type: 'test'
+  ...
+# Subtest: percentiles use the nearest-rank method
+ok 34 - percentiles use the nearest-rank method
+  ---
+  duration_ms: 7.8083
+  type: 'test'
+  ...
+# Subtest: summarize reports the 90th percentile and ignores input order
+ok 35 - summarize reports the 90th percentile and ignores input order
+  ---
+  duration_ms: 0.5039
+  type: 'test'
+  ...
+# Subtest: failed requests are counted and never hide a slow endpoint
+ok 36 - failed requests are counted and never hide a slow endpoint
+  ---
+  duration_ms: 62.6431
+  type: 'test'
+  ...
+# Subtest: an endpoint passes only with no errors and p90 within the limit
+ok 37 - an endpoint passes only with no errors and p90 within the limit
+  ---
+  duration_ms: 26.8153
+  type: 'test'
+  ...
+# Subtest: a slow tail above 10% pushes the 90th percentile over the limit
+ok 38 - a slow tail above 10% pushes the 90th percentile over the limit
+  ---
+  duration_ms: 1.0531
+  type: 'test'
+  ...
+# Subtest: enforcement is off by default so local development is unchanged
+ok 39 - enforcement is off by default so local development is unchanged
+  ---
+  duration_ms: 155.2255
+  type: 'test'
+  ...
+# Subtest: HTTP GET is redirected to HTTPS when enforcement is on
+ok 40 - HTTP GET is redirected to HTTPS when enforcement is on
+  ---
+  duration_ms: 67.7073
+  type: 'test'
+  ...
+# Subtest: HTTP POST is rejected, not redirected, when enforcement is on
+ok 41 - HTTP POST is rejected, not redirected, when enforcement is on
+  ---
+  duration_ms: 8.5046
+  type: 'test'
+  ...
+# Subtest: requests the proxy marked as HTTPS are allowed through
+ok 42 - requests the proxy marked as HTTPS are allowed through
+  ---
+  duration_ms: 10.8394
+  type: 'test'
+  ...
+# Subtest: a malicious Host header is not used for the redirect target
+ok 43 - a malicious Host header is not used for the redirect target
+  ---
+  duration_ms: 53.1311
+  type: 'test'
+  ...
+# Subtest: HTTPS stays off unless ENABLE_HTTPS=true
+ok 44 - HTTPS stays off unless ENABLE_HTTPS=true
+  ---
+  duration_ms: 0.7151
+  type: 'test'
+  ...
+# Subtest: HTTPS enabled without certificate files fails with a helpful message
+ok 45 - HTTPS enabled without certificate files fails with a helpful message
+  ---
+  duration_ms: 1.7259
+  type: 'test'
+  ...
+# Subtest: certificate files are loaded from the configured paths
+ok 46 - certificate files are loaded from the configured paths
+  ---
+  duration_ms: 8.8523
+  type: 'test'
+  ...
+# Subtest: the plain-HTTP port only redirects to the HTTPS port
+ok 47 - the plain-HTTP port only redirects to the HTTPS port
+  ---
+  duration_ms: 1.7515
+  type: 'test'
+  ...
+# Subtest: students can view available internship and placement listings
+ok 48 - students can view available internship and placement listings
+  ---
+  duration_ms: 168.7674
+  type: 'test'
+  ...
+# Subtest: each listing includes its relevant details
+ok 49 - each listing includes its relevant details
+  ---
+  duration_ms: 28.8263
+  type: 'test'
+  ...
+# Subtest: only OPEN listings are queried, so inactive listings are not shown
+ok 50 - only OPEN listings are queried, so inactive listings are not shown
+  ---
+  duration_ms: 2.4257
+  type: 'test'
+  ...
+# Subtest: only logged-in students can view listings
+ok 51 - only logged-in students can view listings
+  ---
+  duration_ms: 106.1608
+  type: 'test'
+  ...
+# Subtest: students can filter listings by role
+ok 52 - students can filter listings by role
+  ---
+  duration_ms: 29.6317
+  type: 'test'
+  ...
+# Subtest: students can filter listings by location
+ok 53 - students can filter listings by location
+  ---
+  duration_ms: 7.7797
+  type: 'test'
+  ...
+# Subtest: students can specify a minimum CGPA, and listings with no requirement stay included
+ok 54 - students can specify a minimum CGPA, and listings with no requirement stay included
+  ---
+  duration_ms: 6.7266
+  type: 'test'
+  ...
+# Subtest: filters combine so results match every selected filter
+ok 55 - filters combine so results match every selected filter
+  ---
+  duration_ms: 6.9848
+  type: 'test'
+  ...
+# Subtest: empty filters are ignored and return the full active list
+ok 56 - empty filters are ignored and return the full active list
+  ---
+  duration_ms: 17.1197
+  type: 'test'
+  ...
+# Subtest: typed % and _ are matched literally, not as wildcards
+ok 57 - typed % and _ are matched literally, not as wildcards
+  ---
+  duration_ms: 1.4286
+  type: 'test'
+  ...
+# Subtest: filter values are always sent as parameters, never joined into the SQL
+ok 58 - filter values are always sent as parameters, never joined into the SQL
+  ---
+  duration_ms: 0.4927
+  type: 'test'
+  ...
+# Subtest: invalid filters are rejected with 400
+ok 59 - invalid filters are rejected with 400
+  ---
+  duration_ms: 29.1152
+  type: 'test'
+  ...
+# Subtest: mock interview routes reject unauthenticated and wrong-role users
+ok 60 - mock interview routes reject unauthenticated and wrong-role users
+  ---
+  duration_ms: 109.1559
+  type: 'test'
+  ...
+# Subtest: students can view available slots and duplicate slot bookings are prevented
+ok 61 - students can view available slots and duplicate slot bookings are prevented
+  ---
+  duration_ms: 143.6838
+  type: 'test'
+  ...
+# Subtest: only an administrator can create slots and submit feedback
+ok 62 - only an administrator can create slots and submit feedback
+  ---
+  duration_ms: 100.8117
+  type: 'test'
+  ...
+# Subtest: invalid booking IDs and feedback are rejected
+ok 63 - invalid booking IDs and feedback are rejected
+  ---
+  duration_ms: 28.664
+  type: 'test'
+  ...
+# Subtest: mock interview rejects invalid slot times and unavailable slots
+ok 64 - mock interview rejects invalid slot times and unavailable slots
+  ---
+  duration_ms: 49.5224
+  type: 'test'
+  ...
+# Subtest: admin can review interview bookings and duplicate slots are rejected
+ok 65 - admin can review interview bookings and duplicate slots are rejected
+  ---
+  duration_ms: 22.0835
+  type: 'test'
+  ...
+# Subtest: mock tests reject unauthenticated and wrong-role users
+ok 66 - mock tests reject unauthenticated and wrong-role users
+  ---
+  duration_ms: 103.2064
+  type: 'test'
+  ...
+# Subtest: students can start a test and receive questions without answers
+ok 67 - students can start a test and receive questions without answers
+  ---
+  duration_ms: 17.7416
+  type: 'test'
+  ...
+# Subtest: students can retrieve their own attempt and its remaining time
+ok 68 - students can retrieve their own attempt and its remaining time
+  ---
+  duration_ms: 26.5718
+  type: 'test'
+  ...
+# Subtest: students cannot access another student attempt
+ok 69 - students cannot access another student attempt
+  ---
+  duration_ms: 42.2737
+  type: 'test'
+  ...
+# Subtest: invalid attempt IDs and invalid answers are rejected
+ok 70 - invalid attempt IDs and invalid answers are rejected
+  ---
+  duration_ms: 133.3219
+  type: 'test'
+  ...
+# Subtest: server automatically scores submitted answers
+ok 71 - server automatically scores submitted answers
+  ---
+  duration_ms: 18.7635
+  type: 'test'
+  ...
+# Subtest: a submitted attempt cannot be submitted again
+ok 72 - a submitted attempt cannot be submitted again
+  ---
+  duration_ms: 46.3799
+  type: 'test'
+  ...
+# Subtest: expired attempts are rejected and recorded with zero score
+ok 73 - expired attempts are rejected and recorded with zero score
+  ---
+  duration_ms: 50.8422
+  type: 'test'
+  ...
+# Subtest: HTTP routes enforce role and live recruiter approval checks
+ok 74 - HTTP routes enforce role and live recruiter approval checks
+  ---
+  duration_ms: 200.8494
+  type: 'test'
+  ...
+# Subtest: actual /api/auth/me endpoint enforces student authorization
+ok 75 - actual /api/auth/me endpoint enforces student authorization
+  ---
+  duration_ms: 44.3664
+  type: 'test'
+  ...
+# {"timestamp":"2026-11-11T17:17:14.620Z","type":"security_event","event":"auth.recruiter.login.success","actorType":"recruiter","actorId":17,"outcome":"success","statusCode":200}
+# {"timestamp":"2026-11-11T17:17:14.938Z","type":"security_event","event":"auth.recruiter.login.denied","actorType":"recruiter","actorId":18,"outcome":"not_approved","statusCode":403}
+# {"timestamp":"2026-11-11T17:17:15.124Z","type":"security_event","event":"auth.recruiter.login.failure","actorType":"recruiter","outcome":"invalid_credentials","statusCode":401}
+# Subtest: recruiter login requires approval and access rechecks live database status
+ok 76 - recruiter login requires approval and access rechecks live database status
+  ---
+  duration_ms: 1279.9837
+  type: 'test'
+  ...
+# Subtest: recruiter access endpoint rejects unauthenticated and wrong-role requests
+ok 77 - recruiter access endpoint rejects unauthenticated and wrong-role requests
+  ---
+  duration_ms: 26.5865
+  type: 'test'
+  ...
+# Subtest: admin pending-request endpoint is protected and excludes password hashes
+ok 78 - admin pending-request endpoint is protected and excludes password hashes
+  ---
+  duration_ms: 27.3019
+  type: 'test'
+  ...
+# Subtest: admin can approve and reject pending recruiter requests
+ok 79 - admin can approve and reject pending recruiter requests
+  ---
+  duration_ms: 20.8539
+  type: 'test'
+  ...
+# Subtest: admin decision endpoint rejects unauthorized, invalid, and missing requests
+ok 80 - admin decision endpoint rejects unauthorized, invalid, and missing requests
+  ---
+  duration_ms: 45.3315
+  type: 'test'
+  ...
+# {"timestamp":"2026-11-11T17:17:15.661Z","type":"security_event","event":"auth.admin.login.failure","actorType":"admin","outcome":"invalid_credentials","statusCode":401}
+# {"timestamp":"2026-11-11T17:17:15.854Z","type":"security_event","event":"auth.admin.login.success","actorType":"admin","outcome":"success","statusCode":200}
+# Subtest: configured administrator can sign in and access protected admin routes
+ok 81 - configured administrator can sign in and access protected admin routes
+  ---
+  duration_ms: 604.328
+  type: 'test'
+  ...
+# Subtest: a recruiter can view the applicants for their own listing
+ok 82 - a recruiter can view the applicants for their own listing
+  ---
+  duration_ms: 88.817
+  type: 'test'
+  ...
+# Subtest: applicant data excludes phone, bio and the resume file contents
+ok 83 - applicant data excludes phone, bio and the resume file contents
+  ---
+  duration_ms: 12.8348
+  type: 'test'
+  ...
+# Subtest: a recruiter cannot view applicants for another recruiter's listing
+ok 84 - a recruiter cannot view applicants for another recruiter's listing
+  ---
+  duration_ms: 11.6557
+  type: 'test'
+  ...
+# Subtest: unapproved recruiters, students and anonymous users are refused
+ok 85 - unapproved recruiters, students and anonymous users are refused
+  ---
+  duration_ms: 61.1922
+  type: 'test'
+  ...
+# Subtest: a recruiter can mark an applicant as shortlisted or rejected
+ok 86 - a recruiter can mark an applicant as shortlisted or rejected
+  ---
+  duration_ms: 32.1086
+  type: 'test'
+  ...
+# Subtest: a recruiter can select an applicant and selected applications cannot be changed here
+ok 87 - a recruiter can select an applicant and selected applications cannot be changed here
+  ---
+  duration_ms: 47.8137
+  type: 'test'
+  ...
+# Subtest: a recruiter cannot change an application on another recruiter's listing
+ok 88 - a recruiter cannot change an application on another recruiter's listing
+  ---
+  duration_ms: 12.5113
+  type: 'test'
+  ...
+# Subtest: only Shortlisted, Selected, and Rejected are accepted as decisions
+ok 89 - only Shortlisted, Selected, and Rejected are accepted as decisions
+  ---
+  duration_ms: 100.4397
+  type: 'test'
+  ...
+# Subtest: applications already at Interview or Selected are not overwritten
+ok 90 - applications already at Interview or Selected are not overwritten
+  ---
+  duration_ms: 6.4975
+  type: 'test'
+  ...
+# Subtest: invalid IDs and missing applications are rejected
+ok 91 - invalid IDs and missing applications are rejected
+  ---
+  duration_ms: 17.732
+  type: 'test'
+  ...
+# Subtest: malformed and null profile snapshots produce safe empty applicant profiles
+ok 92 - malformed and null profile snapshots produce safe empty applicant profiles
+  ---
+  duration_ms: 54.6644
+  type: 'test'
+  ...
+# Subtest: concurrent application status changes return a conflict
+ok 93 - concurrent application status changes return a conflict
+  ---
+  duration_ms: 6.2841
+  type: 'test'
+  ...
+# Subtest: an approved recruiter can create a listing with the required details
+ok 94 - an approved recruiter can create a listing with the required details
+  ---
+  duration_ms: 235.5831
+  type: 'test'
+  ...
+# Subtest: the owner and status come from the token, not from the request body
+ok 95 - the owner and status come from the token, not from the request body
+  ---
+  duration_ms: 12.8178
+  type: 'test'
+  ...
+# Subtest: a recruiter can publish a draft and it becomes OPEN (visible to students)
+ok 96 - a recruiter can publish a draft and it becomes OPEN (visible to students)
+  ---
+  duration_ms: 23.874
+  type: 'test'
+  ...
+# Subtest: a listing can be created and published in one step
+ok 97 - a listing can be created and published in one step
+  ---
+  duration_ms: 21.1867
+  type: 'test'
+  ...
+# Subtest: an unapproved recruiter cannot create or publish listings
+ok 98 - an unapproved recruiter cannot create or publish listings
+  ---
+  duration_ms: 31.3871
+  type: 'test'
+  ...
+# Subtest: students and anonymous users cannot use recruiter listing routes
+ok 99 - students and anonymous users cannot use recruiter listing routes
+  ---
+  duration_ms: 34.1735
+  type: 'test'
+  ...
+# Subtest: a recruiter cannot publish or close another recruiter's listing
+ok 100 - a recruiter cannot publish or close another recruiter's listing
+  ---
+  duration_ms: 27.6097
+  type: 'test'
+  ...
+# Subtest: a closed listing cannot be published again, and closing hides it from students
+ok 101 - a closed listing cannot be published again, and closing hides it from students
+  ---
+  duration_ms: 20.003
+  type: 'test'
+  ...
+# Subtest: a recruiter only sees their own listings
+ok 102 - a recruiter only sees their own listings
+  ---
+  duration_ms: 11.2442
+  type: 'test'
+  ...
+# Subtest: invalid listing details are rejected with 400
+ok 103 - invalid listing details are rejected with 400
+  ---
+  duration_ms: 37.3799
+  type: 'test'
+  ...
+# Subtest: a prospective recruiter can submit an account request
+ok 104 - a prospective recruiter can submit an account request
+  ---
+  duration_ms: 876.5134
+  type: 'test'
+  ...
+# Subtest: a new request is PENDING even if the client asks for APPROVED
+ok 105 - a new request is PENDING even if the client asks for APPROVED
+  ---
+  duration_ms: 735.308
+  type: 'test'
+  ...
+# Subtest: the response and stored data never contain the plain password
+ok 106 - the response and stored data never contain the plain password
+  ---
+  duration_ms: 1303.6319
+  type: 'test'
+  ...
+# Subtest: submitting grants no token and no recruiter privileges
+ok 107 - submitting grants no token and no recruiter privileges
+  ---
+  duration_ms: 588.896
+  type: 'test'
+  ...
+# Subtest: a duplicate email is rejected with 409
+ok 108 - a duplicate email is rejected with 409
+  ---
+  duration_ms: 543.3798
+  type: 'test'
+  ...
+# Subtest: invalid input is rejected with 400
+ok 109 - invalid input is rejected with 400
+  ---
+  duration_ms: 35.8174
+  type: 'test'
+  ...
+# Subtest: approval resolver rejects invalid database pools
+ok 110 - approval resolver rejects invalid database pools
+  ---
+  duration_ms: 3.3375
+  type: 'test'
+  ...
+# Subtest: approval resolver rejects invalid recruiter IDs without querying the database
+ok 111 - approval resolver rejects invalid recruiter IDs without querying the database
+  ---
+  duration_ms: 0.8442
+  type: 'test'
+  ...
+# Subtest: approval resolver normalizes status and handles missing or non-string statuses
+ok 112 - approval resolver normalizes status and handles missing or non-string statuses
+  ---
+  duration_ms: 2.8281
+  type: 'test'
+  ...
+# Subtest: approval resolver propagates database failures
+ok 113 - approval resolver propagates database failures
+  ---
+  duration_ms: 1.2431
+  type: 'test'
+  ...
+# Subtest: email addresses are removed from log text
+ok 114 - email addresses are removed from log text
+  ---
+  duration_ms: 2.7558
+  type: 'test'
+  ...
+# Subtest: password hashes, JWTs and bearer tokens are removed from log text
+ok 115 - password hashes, JWTs and bearer tokens are removed from log text
+  ---
+  duration_ms: 0.601
+  type: 'test'
+  ...
+# Subtest: password and OTP values in key=value text are removed
+ok 116 - password and OTP values in key=value text are removed
+  ---
+  duration_ms: 1.7896
+  type: 'test'
+  ...
+# Subtest: logError records the type, code and a redacted message only
+ok 117 - logError records the type, code and a redacted message only
+  ---
+  duration_ms: 0.5735
+  type: 'test'
+  ...
+# Subtest: ordinary text without sensitive data is left unchanged
+ok 118 - ordinary text without sensitive data is left unchanged
+  ---
+  duration_ms: 0.4756
+  type: 'test'
+  ...
+# Subtest: security events contain a timestamp and identifiable event
+ok 119 - security events contain a timestamp and identifiable event
+  ---
+  duration_ms: 4.1165
+  type: 'test'
+  ...
+# Subtest: security logger excludes passwords, tokens, emails, and arbitrary fields
+ok 120 - security logger excludes passwords, tokens, emails, and arbitrary fields
+  ---
+  duration_ms: 0.4623
+  type: 'test'
+  ...
+# Subtest: invalid security event identifiers are rejected
+ok 121 - invalid security event identifiers are rejected
+  ---
+  duration_ms: 3.2054
+  type: 'test'
+  ...
+# Subtest: security metadata ignores non-allowlisted and non-finite values
+ok 122 - security metadata ignores non-allowlisted and non-finite values
+  ---
+  duration_ms: 0.7646
+  type: 'test'
+  ...
+# Subtest: profile validation trims optional values and accepts a valid CGPA
+ok 123 - profile validation trims optional values and accepts a valid CGPA
+  ---
+  duration_ms: 2.1183
+  type: 'test'
+  ...
+# Subtest: profile validation rejects oversized fields and invalid CGPA
+ok 124 - profile validation rejects oversized fields and invalid CGPA
+  ---
+  duration_ms: 1.5972
+  type: 'test'
+  ...
+# Subtest: resume validation checks file signatures
+ok 125 - resume validation checks file signatures
+  ---
+  duration_ms: 0.5939
+  type: 'test'
+  ...
+1..125
+# tests 125
+# suites 0
+# pass 125
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12506.3028
